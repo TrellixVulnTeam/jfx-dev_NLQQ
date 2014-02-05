@@ -809,7 +809,7 @@ public class TableViewKeyInputTest {
         keyboard.doDownArrowPress(KeyModifier.getShortcutKey());
         keyboard.doDownArrowPress(KeyModifier.getShortcutKey());
         keyboard.doKeyPress(KeyCode.PAGE_UP, KeyModifier.SHIFT);
-        assertTrue(isSelected(0,1,2));
+        assertTrue(debug(), isSelected(0,1,2));
         assertTrue(isAnchor(2));
     }
     
@@ -3219,7 +3219,6 @@ public class TableViewKeyInputTest {
         assertTrue(sm.isSelected(2));
     }
 
-    @Ignore("Bug not resolved yet")
     @Test public void test_rt34407_down_down_up() {
         final int items = 100;
         tableView.getItems().clear();
@@ -3261,7 +3260,6 @@ public class TableViewKeyInputTest {
         assertEquals(selectedIndicesCount, sm.getSelectedIndices().size());
     }
 
-    @Ignore("Bug not resolved yet")
     @Test public void test_rt34407_up_up_down() {
         final int items = 100;
         tableView.getItems().clear();
@@ -3303,5 +3301,15 @@ public class TableViewKeyInputTest {
         keyboard.doKeyPress(KeyCode.PAGE_DOWN, KeyModifier.SHIFT);
         assertEquals(leadSelectedIndex, sm.getSelectedIndex());
         assertEquals(selectedIndicesCount, sm.getSelectedIndices().size());
+    }
+
+    @Test public void test_rt34768() {
+        tableView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+        TableColumn<String, String> firstNameCol = new TableColumn<>("First Name");
+        tableView.getColumns().setAll(firstNameCol);
+        tableView.getItems().clear();
+
+        // no need for an assert here - we're testing for an AIOOBE
+        keyboard.doKeyPress(KeyCode.A, KeyModifier.getShortcutKey());
     }
 }

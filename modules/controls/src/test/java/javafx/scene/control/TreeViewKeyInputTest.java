@@ -2023,7 +2023,6 @@ public class TreeViewKeyInputTest {
         assertTrue(isSelected(1, 2));
     }
 
-    @Ignore("Bug not resolved yet")
     @Test public void test_rt34407_down_down_up() {
         final int items = 100;
         root.getChildren().clear();
@@ -2064,7 +2063,6 @@ public class TreeViewKeyInputTest {
         assertEquals(selectedIndicesCount, sm.getSelectedIndices().size());
     }
 
-    @Ignore("Bug not resolved yet")
     @Test public void test_rt34407_up_up_down() {
         final int items = 100;
         root.getChildren().clear();
@@ -2105,5 +2103,14 @@ public class TreeViewKeyInputTest {
         keyboard.doKeyPress(KeyCode.PAGE_DOWN, KeyModifier.SHIFT);
         assertEquals(leadSelectedIndex, sm.getSelectedIndex());
         assertEquals(selectedIndicesCount, sm.getSelectedIndices().size());
+    }
+
+    @Test public void test_rt34768() {
+        treeView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+        TreeTableColumn<String, String> firstNameCol = new TreeTableColumn<>("First Name");
+        treeView.setRoot(null);
+
+        // no need for an assert here - we're testing for an AIOOBE
+        keyboard.doKeyPress(KeyCode.A, KeyModifier.getShortcutKey());
     }
 }
