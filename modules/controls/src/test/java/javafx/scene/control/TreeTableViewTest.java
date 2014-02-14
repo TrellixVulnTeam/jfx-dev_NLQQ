@@ -31,6 +31,7 @@ import static javafx.scene.control.TreeTableColumn.SortType.DESCENDING;
 import static org.junit.Assert.*;
 import static org.junit.Assert.assertEquals;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
@@ -3110,5 +3111,196 @@ public class TreeTableViewTest {
 
         group2.setExpanded(false);
         Toolkit.getToolkit().firePulse();
+    }
+
+    @Test public void test_rt23245_itemIsInTree() {
+        final TreeTableView<String> view = new TreeTableView<String>();
+        final List<TreeItem<String>> items = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            final TreeItem<String> item = new TreeItem<String>("Item" + i);
+            item.setExpanded(true);
+            items.add(item);
+        }
+
+        // link the items up so that the next item is the child of the current item
+        for (int i = 0; i < 9; i++) {
+            items.get(i).getChildren().add(items.get(i + 1));
+        }
+
+        view.setRoot(items.get(0));
+
+        for (int i = 0; i < 10; i++) {
+            // we expect the level of the tree item at the ith position to be
+            // 0, as every iteration we are setting the ith item as the root.
+            assertEquals(0, view.getTreeItemLevel(items.get(i)));
+
+            // whilst we are testing, we should also ensure that the ith item
+            // is indeed the root item, and that the ith item is indeed the item
+            // at the 0th position
+            assertEquals(items.get(i), view.getRoot());
+            assertEquals(items.get(i), view.getTreeItem(0));
+
+            // shuffle the next item into the root position (keeping its parent
+            // chain intact - which is what exposes this issue in the first place).
+            if (i < 9) {
+                view.setRoot(items.get(i + 1));
+            }
+        }
+    }
+
+    @Test public void test_rt23245_itemIsNotInTree_noRootNode() {
+        final TreeView<String> view = new TreeView<String>();
+        final List<TreeItem<String>> items = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            final TreeItem<String> item = new TreeItem<String>("Item" + i);
+            item.setExpanded(true);
+            items.add(item);
+        }
+
+        // link the items up so that the next item is the child of the current item
+        for (int i = 0; i < 9; i++) {
+            items.get(i).getChildren().add(items.get(i + 1));
+        }
+
+        for (int i = 0; i < 10; i++) {
+            // because we have no root (and we are not changing the root like
+            // the previous test), we expect the tree item level of the item
+            // in the ith position to be i.
+            assertEquals(i, view.getTreeItemLevel(items.get(i)));
+
+            // all items requested from the TreeView should be null, as the
+            // TreeView does not have a root item
+            assertNull(view.getTreeItem(i));
+        }
+    }
+
+    @Test public void test_rt23245_itemIsNotInTree_withUnrelatedRootNode() {
+        final TreeView<String> view = new TreeView<String>();
+        final List<TreeItem<String>> items = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            final TreeItem<String> item = new TreeItem<String>("Item" + i);
+            item.setExpanded(true);
+            items.add(item);
+        }
+
+        // link the items up so that the next item is the child of the current item
+        for (int i = 0; i < 9; i++) {
+            items.get(i).getChildren().add(items.get(i + 1));
+        }
+
+        view.setRoot(new TreeItem("Unrelated root node"));
+
+        for (int i = 0; i < 10; i++) {
+            // because we have no root (and we are not changing the root like
+            // the previous test), we expect the tree item level of the item
+            // in the ith position to be i.
+            assertEquals(i, view.getTreeItemLevel(items.get(i)));
+
+            // all items requested from the TreeView should be null except for
+            // the root node
+            assertNull(view.getTreeItem(i + 1));
+        }
+    }
+
+    @Test public void test_rt35039_setRoot() {
+        TreeItem<String> root = new TreeItem<>("Root");
+        root.setExpanded(true);
+        root.getChildren().addAll(
+                new TreeItem("aabbaa"),
+                new TreeItem("bbc"));
+
+        final TreeTableView<String> treeView = new TreeTableView<>();
+        treeView.setRoot(root);
+
+        new StageLoader(treeView);
+
+        // everything should be null to start with
+        assertNull(treeView.getSelectionModel().getSelectedItem());
+
+        // select "bbc" and ensure everything is set to that
+        treeView.getSelectionModel().select(2);
+        assertEquals("bbc", treeView.getSelectionModel().getSelectedItem().getValue());
+
+        // change the items list - but retain the same content. We expect
+        // that "bbc" remains selected as it is still in the list
+        treeView.setRoot(root);
+        assertEquals("bbc", treeView.getSelectionModel().getSelectedItem().getValue());
+    }
+
+    @Test public void test_rt35039_resetRootChildren() {
+        TreeItem aabbaa = new TreeItem("aabbaa");
+        TreeItem bbc = new TreeItem("bbc");
+
+        TreeItem<String> root = new TreeItem<>("Root");
+        root.setExpanded(true);
+        root.getChildren().setAll(aabbaa, bbc);
+
+        final TreeTableView<String> treeView = new TreeTableView<>();
+        treeView.setRoot(root);
+
+        new StageLoader(treeView);
+
+        // everything should be null to start with
+        assertNull(treeView.getSelectionModel().getSelectedItem());
+
+        // select "bbc" and ensure everything is set to that
+        treeView.getSelectionModel().select(2);
+        assertEquals("bbc", treeView.getSelectionModel().getSelectedItem().getValue());
+
+        // change the items list - but retain the same content. We expect
+        // that "bbc" remains selected as it is still in the list
+        root.getChildren().setAll(aabbaa, bbc);
+        assertEquals("bbc", treeView.getSelectionModel().getSelectedItem().getValue());
+    }
+
+    @Test public void test_rt35763() {
+        TreeItem<String> root = new TreeItem<>("Root");
+        root.setExpanded(true);
+        TreeItem aaa = new TreeItem("aaa");
+        TreeItem bbb = new TreeItem("bbb");
+        root.getChildren().setAll(bbb, aaa);
+
+        final TreeTableView<String> treeView = new TreeTableView<>();
+
+        TreeTableColumn<String, String> col = new TreeTableColumn<>("Column");
+        col.setCellValueFactory(new Callback<TreeTableColumn.CellDataFeatures<String, String>, ObservableValue<String>>() {
+            @Override public ObservableValue<String> call(TreeTableColumn.CellDataFeatures<String, String> param) {
+                return param.getValue().valueProperty();
+            }
+        });
+
+        treeView.getColumns().add(col);
+        treeView.setRoot(root);
+
+        assertEquals(root, treeView.getTreeItem(0));
+        assertEquals(bbb, treeView.getTreeItem(1));
+        assertEquals(aaa,treeView.getTreeItem(2));
+
+        // change sort order - expect items to be sorted
+        treeView.getSortOrder().setAll(col);
+
+        assertEquals(1, treeView.getSortOrder().size());
+        assertEquals(col, treeView.getSortOrder().get(0));
+
+        Toolkit.getToolkit().firePulse();
+
+        assertEquals(root, treeView.getTreeItem(0));
+        assertEquals(bbb, treeView.getTreeItem(2));
+        assertEquals(aaa,treeView.getTreeItem(1));
+
+        // set new items into items list - expect sortOrder list to be reset
+        // and the items list to remain unsorted
+        TreeItem<String> root2 = new TreeItem<>("Root");
+        root2.setExpanded(true);
+        TreeItem ccc = new TreeItem("ccc");
+        TreeItem ddd = new TreeItem("ddd");
+        root2.getChildren().setAll(ddd, ccc);
+        treeView.setRoot(root2);
+
+        assertEquals(root2, treeView.getTreeItem(0));
+        assertEquals(ddd, treeView.getTreeItem(1));
+        assertEquals(ccc,treeView.getTreeItem(2));
+
+        assertTrue(treeView.getSortOrder().isEmpty());
     }
 }
