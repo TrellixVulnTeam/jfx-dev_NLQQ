@@ -125,6 +125,11 @@
                 color:#090;
                 margin: 0px;
             }
+            span.example {
+                font-family:"Lucida Console", Monaco, monospace;
+                font-size: 14px;
+                color:#090;
+            }
             p.subtitle {
                 font-style: italic;
                 color:#999;
@@ -303,7 +308,8 @@
               <li><a href="#choicebox">ChoiceBox</a></li>
               <li><a href="#colorpicker">ColorPicker</a></li>
               <li><a href="#combobox">ComboBox</a></li>
-              <li><a href="#control">Control</a></li>
+                <li><a href="#contextmenu">ContextMenu</a></li>
+                <li><a href="#control">Control</a></li>
               <li><a href="#hyperlink">Hyperlink</a></li>
               <li><a href="#indexedcell">IndexedCell</a></li>
               <li><a href="#label">Label</a></li>
@@ -493,19 +499,6 @@
         Parent can have a style sheets. A child will take its styles from its own
         inline styles, the style sheets of all its ancestors, and any style sheets
         from the Scene.
-    </p>
-    <p>
-        A style sheet URL may be an absolute URL or a relative URL. If a relative
-        URL is given, it is resolved against the base URL of the ClassLoader of
-        the concrete Application class. If, for example, there is a main class <code>com.wicked.cool.ui.Main</code>
-        that extends Application, the relative URL
-        "/com/wicked/cool/resources/styles.css" would resolve correctly,
-        as would "com/wicked/cool/resources/styles.css". The
-        relative URL "../resources/styles.css" would not since the path ".."
-        relative to the root is not a valid path. It is often easier to use the
-        ClassLoader of some class to find the resource. For example, if the
-        "styles.css" file resides in the same package as Main, the following code
-        will give the correct URL: <code>com.wicked.cool.ui.Main.class.getResource("styles.css").toExternalForm()</code>.
     </p>
     The implementation allows designers to style an application by using style
     sheets to override property values set from code. For example, a call to <code>rectangle.setFill(Color.YELLOW)</code>
@@ -738,7 +731,7 @@
     <p class="grammar"><a href="#typenumber">&lt;number&gt;</a>[ deg | rad |
       grad | turn ]</p>
     <ul>
-      <li><strong>deg</strong>: angle in degrees - all other angle units are
+      <li><strong>deg</strong>: angle in degrees &mdash; all other angle units are
         converted to degrees.</li>
       <li><strong>rad</strong>: angle in radians</li>
       <li><strong>grad</strong>: angle in gradians</li>
@@ -773,12 +766,69 @@
       distributed evenly between 0% and 100%.</p>
     <h3><a name="typeurl" id="typeurl">&lt;uri&gt;</a></h3>
     <p class="grammar">url ( [\"\']? &lt;address&gt; [\"\']? )</p>
-    <p><span class="grammar">&lt;address&gt;</span> can be an absolute URI, for
-      example:</p>
-    <p class="example">url(http://example.com)<br>
-      url('http://example.com')<br>
-      url("http://example.com")</p>
-    <p>or it can be relative to the location of the CSS file. </p>
+    <p><span class="grammar">&lt;address&gt;</span> is a hierarchical URI of the form [scheme:][//authority][path] <a href="#references">(see [2])</a>.
+        For example:</p>
+    <p class="example">
+        url(http://example.com/images/Duke.png)<br>
+        url(/com/example/javafx/app/images/Duke.png)<br>
+    <p>If the <span class="grammar">&lt;address&gt;</span> does not have a [scheme:] component, the <span class="grammar">&lt;address&gt;</span>
+        is considered to be the [path] component only. Any leading '/' character of the [path] is ignored and the
+        [path] is treated as a relative path. If the style appears in a stylesheet, the path is relative to the base
+        URI of the stylesheet. If the style appears in an inline style, the path is relative to the root of the
+        classpath.
+    </p>
+    <table class="csspropertytable" cellspacing="3" cellpadding="4">
+            <caption>Examples of Resolving URLs in Stylesheets</caption>
+            <tr>
+                <th>Stylesheet URL</th><th>URL in Style</th><th>Resolves to</th>
+            </tr>
+            <tr>
+                <td>file:///some/path/build/classes/com/mycompany/myapp/mystyles.css</td>
+                <td>url(images/Duke.png)</td>
+                <td>file:///some/path/build/classes/com/mycompany/myapp/images/Duke.png</td>
+            </tr>
+            <tr>
+                <td>file:///some/path/build/classes/com/mycompany/myapp/mystyles.css</td>
+                <td>url(../images/Duke.png)</td>
+                <td>file:///some/path/build/classes/com/mycompany/images/Duke.png</td>
+            </tr>
+        <tr>
+            <td>jar:file:/some/path/build/myapp.jar!/com/mycompany/myapp/mystyles.css</td>
+            <td>url(images/Duke.png)</td>
+            <td>jar:file:/some/path/build/myapp.jar!/com/mycompany/myapp/images/Duke.png</td>
+        </tr>
+        </table>
+    <p></p>
+    <table class="csspropertytable" cellspacing="3" cellpadding="4">
+        <caption>Examples of Resolving URLs in Inline Styles</caption>
+        <tr>
+            <th>Classpath</th><th>URL in Style</th><th>Resolved URL</th>
+        </tr>
+        <tr>
+            <td>file:///some/path/build/classes</td>
+            <td>url(/com/mycompany/resources/images/Duke.png)</td>
+            <td>file:///some/path/build/classes/com/mycompany/resources/images/Duke.png</td>
+        </tr>
+        <tr>
+            <td>file:///some/path/build/myapp.jar</td>
+            <td>url(/com/mycompany/resources/images/Duke.png)</td>
+            <td>jar:file:/some/path/build/myapp.jar!/com/mycompany/resources/images/Duke.png</td>
+        </tr>
+    </table>
+    <p>Note that for inline styles, leading dot-segments (e.g. '..' or '.') do resolve since the path is always
+    anchored at the root of the classpath.</p>
+    <p>This snippet of code creates a scene filled with the "paste" image from HTMLEditor which is found in jfxrt.jar.</p>
+    <textarea rows="8" cols="132">
+
+    @Override public void start(Stage stage) {
+        StackPane root = new StackPane();
+        root.setStyle("-fx-background-image: url(/com/sun/javafx/scene/control/skin/modena/HTMLEditor-Paste.png);");
+        Scene scene = new Scene(root, 300, 250);
+        stage.setScene(scene);
+        stage.show();
+    }
+    </textarea>
+    <p>The same style would work equally as well from a stylesheet.</p>
     <h3><a name="typeeffect" id="typeeffect">&lt;effect&gt;</a></h3>
     <p>JavaFX CSS currently supports the DropShadow and InnerShadow effects from
       the JavaFX platform. See the class documentation in javafx.scene.effect
@@ -1645,10 +1695,10 @@
       following examples all specify the same color:</p>
     <p class="example"></p>
     <ul style="list-style: none;">
-      <li>.label { -fx-text-fill: rgb(255,0,0) } /* integer range 0 - 255*/</li>
+      <li>.label { -fx-text-fill: rgb(255,0,0) } /* integer range 0 &mdash; 255*/</li>
       <li> .label { -fx-text-fill: rgba(255,0,0,1) /* the same, with explicit
         opacity of 1 */</li>
-      <li> .label { -fx-text-fill: rgb(100%,0%,0%) } /* float range 0.0% -
+      <li> .label { -fx-text-fill: rgb(100%,0%,0%) } /* float range 0.0% &mdash;
         100.0% */</li>
       <li> .label { -fx-text-fill: rgba(100%,0%,0%,1) } /* the same, with
         explicit opacity of 1 */</li>
@@ -2169,7 +2219,7 @@
         <tr>
           <td class="propertyname">-fx-fill-height</td>
           <td class="value"><a href="#typeboolean" class="typelink">&lt;boolean&gt;</a></td>
-          <td class="default">false</td>
+          <td class="default">true</td>
           <td>&nbsp;</td>
         </tr>
         <tr>
@@ -2867,7 +2917,7 @@
         </tr>
       </tbody>
     </table>
-    
+
     <table summary="property table" class="package" width="100%">
       <tbody>
         <tr>
@@ -2877,7 +2927,7 @@
     </table>
     <h4><a name="mediaview" id="mediaview">MediaView</a></h4>
 <p class="styleclass">Style class: media-view</p>
-    
+
     <table summary="property table" class="package" width="100%">
       <tbody>
         <tr>
@@ -3243,7 +3293,7 @@
     <p>The Accordion control has all the properties and pseudo&#8209;classes of <a href="#control">Control</a></p>
     <h4>Substructure</h4>
     <ul>
-      <li>first-titled-pane - the first TitledPane </li>
+      <li>first-titled-pane &mdash; the first TitledPane </li>
     </ul>
     <h4><a name="button" id="button">Button</a></h4>
     <p class="styleclass">Style class: button</p>
@@ -3345,7 +3395,7 @@
     </table>
     <h4>Substructure</h4>
     <ul>
-      <li>text - a Labeled</li>
+      <li>text &mdash; a Labeled</li>
     </ul>
     <h4><a name="checkbox" id="checkbox">CheckBox</a></h4>
     <p class="styleclass">Style class: check-box</p>
@@ -3439,7 +3489,7 @@
     <h4>Substructure</h4>
     <ul>
 	  <li>color display node  &mdash; Label</li>
-      <li>arrow-button - StackPane
+      <li>arrow-button &mdash; StackPane
 	    <ul>
 		  <li>arrow &mdash; StackPane</li>
 	    </ul>
@@ -3450,16 +3500,16 @@
     <p>The ComboBox control has all the properties and pseudo&#8209;classes of <a href="#comboboxbase">ComboBoxBase</a></p>
     <h4>Substructure</h4>
     <ul>
-      <li>list-cell - a ListCell instance used to show the selection in the
+      <li>list-cell &mdash; a ListCell instance used to show the selection in the
         button area of a non-editable ComboBox</li>
       <li>text-input &mdash; a TextField instance used to show the selection and
         allow input in the button area of an editable ComboBox</li>
-      <li>combo-box-popup - a PopupControl that is displayed when the button is
+      <li>combo-box-popup &mdash; a PopupControl that is displayed when the button is
         pressed
         <ul>
-          <li>list-view - a ListView
+          <li>list-view &mdash; a ListView
           <ul>
-            <li>list-cell - a ListCell</li>
+            <li>list-cell &mdash; a ListCell</li>
           </ul>
           </li>
         </ul>
@@ -3498,23 +3548,57 @@
         </tr>
       </tbody>
     </table>
+    <h4><a name="contextmenu" id="contextmenu">ContextMenu</a></h4>
+    <p class="styleclass">Style class: context-menu</p>
+    <p>The ContextMenu class has all the properties of <a href="#poupucontrol">PopupControl</a>.</p>
+    The selector for a ContextMenu may be made more specific by using the selector for the control from which the ContextMenu was shown.
+    For example,</p><p class="example">.choice-box > .context-menu { ... }</p>
+    <h4>Substructure</h4>
+    <ul>
+        <li>context-menu &mdash a Region
+            <ul>
+                <li>scroll-arrow &mdash; a StackPane
+                    <ul>menu-up-arrow &mdash; a StackPane</ul>
+                </li>
+                <li>scroll-arrow &mdash; a StackPane
+                    <ul>menu-down-arrow &mdash; a StackPane</ul>
+                </li>
+                <li>* &mdash; a VBox
+                    <ul>
+                        <li>menu-item &mdash; a Region
+                            <ul>
+                                <li>label &mdash; a Label</li>
+                                <li>left-container &mdash; a StackPane (for radio buttons and check boxes)</li>
+                                <li>right-container &mdash; a StackPane (for pull-right menus)
+                                    <ul>
+                                        <li>arrow &mdash; a Region</li>
+                                    </ul>
+                                </li>
+                                <li>graphic-container &mdash; a StackPane (for MenuItem graphic)</li>
+                            </ul>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+        </li>
+    </ul>
     <h4><a name="control" id="control">Control</a></h4>
     <p>The Control class has all the properties of <a href="#region">Region</a></p>
     <table summary="property table" class="csspropertytable" cellpadding="2" cellspacing="1">
-      <thead>
+        <thead>
         <tr>
-          <th class="propertyname">CSS Property</th>
-          <th class="value">Values</th>
-          <th>Default</th>
-          <th>Comments</th>
+            <th class="propertyname">CSS Property</th>
+            <th class="value">Values</th>
+            <th>Default</th>
+            <th>Comments</th>
         </tr>
-      </thead>
-      <tbody>
+        </thead>
+        <tbody>
         <tr>
-          <td class="propertyname">-fx-skin</td>
-          <td class="value"><a href="#typestring" class="typelink">&lt;string&gt;</a></td>
-          <td>null</td>
-          <td>The class name of the Control's Skin.</td>
+            <td class="propertyname">-fx-skin</td>
+            <td class="value"><a href="#typestring" class="typelink">&lt;string&gt;</a></td>
+            <td>null</td>
+            <td>The class name of the Control's Skin.</td>
         </tr>
         <tr>
             <td class="propertyname">-fx-focus-traversable</td>
@@ -3524,7 +3608,7 @@
                 of the focusTraversable property for the following controls is false: Accordion, Cell, Label, MenuBar,
                 ProgressBar, ProgressIndicator, ScrollBar, ScrollPane, Separator, SplitPane, ToolBar.</td>
         </tr>
-      </tbody>
+        </tbody>
     </table>
     <h4><a name="hyperlink" id="hyperlink">Hyperlink</a></h4>
     <p class="styleclass">Style class: hyperlink</p>
@@ -3870,19 +3954,19 @@
 	  <li>page &mdash; StackPane</li>
       <li>pagination-control &mdash; StackPane
         <ul>
-          <li>leftArrowButton - Button
+          <li>leftArrowButton &mdash; Button
 	        <ul>
 		      <li>leftArrow &mdash; StackPane</li>
 	        </ul>
           </li>
-	      <li>rightArrowButton - Button
+	      <li>rightArrowButton &mdash; Button
      	    <ul>
 	    	  <li>rightArrow &mdash; StackPane</li>
 	        </ul>
           </li>
-	      <li>bullet-button - ToggleButton</li>
-	      <li>number-button - ToogleButton</li>
-	      <li>page-information - Label</li>
+	      <li>bullet-button &mdash; ToggleButton</li>
+	      <li>number-button &mdash; ToogleButton</li>
+	      <li>page-information &mdash; Label</li>
 	  </ul>
       </li>
     </ul>
@@ -3928,13 +4012,36 @@
           <td>2.0</td>
           <td>&nbsp;</td>
         </tr>
+        <tr>
+            <td colspan="4" class="parents">Also has all properties of <a href="#control">Control</a></td>
+        </tr>
       </tbody>
     </table>
-    <p>The ProgressBar control has all the properties of and pseudo&#8209;class state
-      of <a href="#progressindicator">ProgressIndicator</a></p>
+    <h4>Pseudo-classes</h4>
+    <table summary="property table" class="csspropertytable" cellpadding="2" cellspacing="1">
+        <thead>
+        <tr>
+            <th class="propertyname">CSS Pseudo-class</th>
+            <th>Comments</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td class="propertyname">determinate</td>
+            <td>applies if the <strong>indeterminate</strong> variable is false</td>
+        </tr>
+        <tr>
+            <td class="propertyname">indetermindate</td>
+            <td>applies if the <strong>indeterminate</strong> variable is true</td>
+        </tr>
+        <tr>
+            <td colspan="2" class="parents">Also has all pseudo&#8209;classes of <a href="#control">Control</a></td>
+        </tr>
+        </tbody>
+    </table>
     <h4>Substructure</h4>
     <ul>
-      <li>track - StackPane
+      <li>track &mdash; StackPane
       <ul>
         <li>bar &mdash; Region</li>
       </ul>
@@ -4000,9 +4107,9 @@
     <h4>Substructure</h4>
     <ul>
       <li>indicator &mdash; StackPane</li>
-      <li>progress - StackPane</li>
-      <li>percentage - Text</li>
-      <li>tick - StackPane</li>
+      <li>progress &mdash; StackPane</li>
+      <li>percentage &mdash; Text</li>
+      <li>tick &mdash; StackPane</li>
     </ul>
     <h4><a name="radiobutton" id="radiobutton">RadioButton</a></h4>
     <p class="styleclass">Style class: radio-button</p>
@@ -4178,7 +4285,7 @@
     <ul>
       <li>scroll-bar:vertical &mdash; ScrollBar</li>
       <li>scroll-bar:horizontall &mdash; ScrollBar</li>
-      <li>corner - StackPane</li>
+      <li>corner &mdash; StackPane</li>
     </ul>
     <h4><a name="separator" id="separator">Separator</a></h4>
     <p class="styleclass">Style class: separator</p>
@@ -4493,21 +4600,21 @@
     <ul>
       <li>tab-header-area &mdash; StackPane
       <ul>
-        <li>headers-region - StackPane</li>
-        <li>tab-header-background - StackPane</li>
-        <li>control-buttons-tab - StackPane
+        <li>headers-region &mdash; StackPane</li>
+        <li>tab-header-background &mdash; StackPane</li>
+        <li>control-buttons-tab &mdash; StackPane
         <ul>
-          <li>tab-down-button - Pane
+          <li>tab-down-button &mdash; Pane
           <ul>
-            <li>arrow - StackPane</li>
+            <li>arrow &mdash; StackPane</li>
           </ul>
           </li>
         </ul>
         </li>
-        <li>tab - Tab
+        <li>tab &mdash; Tab
         <ul>
-          <li>tab-label - Label</li>
-          <li>tab-close-button - StackPane</li>
+          <li>tab-label &mdash; Label</li>
+          <li>tab-close-button &mdash; StackPane</li>
         </ul>
         </li>
       </ul>
@@ -4556,25 +4663,25 @@
     </table>
     <h4>Substructure</h4>
     <ul>
-        <li>column-resize-line - Region</li>
-        <li>column-overlay - Region</li>
-        <li>placeholder - StackPane</li>
-        <li>column-header-background - StackPane
+        <li>column-resize-line &mdash; Region</li>
+        <li>column-overlay &mdash; Region</li>
+        <li>placeholder &mdash; StackPane</li>
+        <li>column-header-background &mdash; StackPane
         <ul>
             <li>nested-column-header
             <ul>
                 <li>column-header</li>
             </ul>
             </li>
-            <li>filler - Region</li>
-            <li>show-hide-columns-button - StackPane
+            <li>filler &mdash; Region</li>
+            <li>show-hide-columns-button &mdash; StackPane
             <ul>
-                <li>show-hide-column-image - StackPane</li>
+                <li>show-hide-column-image &mdash; StackPane</li>
             </ul>
             </li>
-            <li>column-drag-header - StackPane
+            <li>column-drag-header &mdash; StackPane
             <ul>
-                <li>label - Label</li>
+                <li>label &mdash; Label</li>
             </ul>
             </li>
         </ul>
@@ -4627,30 +4734,30 @@
     </table>
     <h4>Substructure</h4>
     <ul>
-      <li>column-resize-line - Region</li>
-      <li>column-overlay - Region</li>
-      <li>placeholder - StackPane</li>
-      <li>column-header-background - StackPane
+      <li>column-resize-line &mdash; Region</li>
+      <li>column-overlay &mdash; Region</li>
+      <li>placeholder &mdash; StackPane</li>
+      <li>column-header-background &mdash; StackPane
       <ul>
         <li>nested-column-header
         <ul>
           <li>column-header</li>
         </ul>
         </li>
-        <li>filler - Region</li>
-        <li>show-hide-columns-button - StackPane
+        <li>filler &mdash; Region</li>
+        <li>show-hide-columns-button &mdash; StackPane
         <ul>
-          <li>show-hide-column-image - StackPane</li>
+          <li>show-hide-column-image &mdash; StackPane</li>
         </ul>
         </li>
-        <li>column-drag-header - StackPane
+        <li>column-drag-header &mdash; StackPane
         <ul>
-          <li>label - Label</li>
+          <li>label &mdash; Label</li>
         </ul>
         </li>
       </ul>
       </li>
-        <li>table-column - TableColumn</li>
+        <li>table-column &mdash; TableColumn</li>
     </ul>
     <h4><a name="textarea" id="textarea">TextArea</a></h4>
     <p class="styleclass">Style class: text-area</p>
@@ -4689,9 +4796,9 @@
     </table>
     <h4>Substructure</h4>
     <ul>
-      <li>scroll-pane - ScrollPane
+      <li>scroll-pane &mdash; ScrollPane
       <ul>
-        <li>content - Region</li>
+        <li>content &mdash; Region</li>
       </ul>
       </li>
     </ul>
@@ -4931,9 +5038,9 @@
     </table>
     <h4>Substructure</h4>
     <ul>
-      <li>tool-bar-overflow-button - StackPane
+      <li>tool-bar-overflow-button &mdash; StackPane
       <ul>
-        <li>arrow - StackPane</li>
+        <li>arrow &mdash; StackPane</li>
       </ul>
       </li>
     </ul>
@@ -5681,8 +5788,8 @@
     </table>
     <h4>Substructure</h4>
     <ul>
-      <li>chart-legend-item - Label</li>
-      <li>chart-legend-item-symbol - Node</li>
+      <li>chart-legend-item &mdash; Label</li>
+      <li>chart-legend-item-symbol &mdash; Node</li>
     </ul>
     <h2><a name="references" id="references">References</a></h2>
     <p>[1] CSS 2.1: <a href="http://www.w3.org/TR/CSS21/" target="_blank">http://www.w3.org/TR/CSS21/</a>
