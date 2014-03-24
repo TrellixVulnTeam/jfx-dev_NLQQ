@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -275,7 +275,7 @@ defineProperty("JAVA", cygpath("$JDK_HOME/bin/java${IS_WINDOWS ? '.exe' : ''}"))
 defineProperty("JAVAC", cygpath("$JDK_HOME/bin/javac${IS_WINDOWS ? '.exe' : ''}"))
 defineProperty("JAVAH", cygpath("$JDK_HOME/bin/javah${IS_WINDOWS ? '.exe' : ''}"))
 defineProperty("JAVADOC", cygpath("$JDK_HOME/bin/javadoc${IS_WINDOWS ? '.exe' : ''}"))
-defineProperty("JDK_DOCS", "http://download.oracle.com/javase/7/docs/api")
+defineProperty("JDK_DOCS", "http://docs.oracle.com/javase/8/docs/api/")
 
 defineProperty("javaRuntimeVersion", System.getProperty("java.runtime.version"))
 defineProperty("javaVersion", javaRuntimeVersion.split("-")[0])
@@ -296,6 +296,11 @@ def supplementalBuildFile = file("$closedDir/closed-build.gradle");
 if (BUILD_CLOSED) {
     apply from: supplementalPreBuildFile
 }
+
+// GRADLE_VERSION_CHECK specifies whether to fail the build if the
+// gradle version check fails
+defineProperty("GRADLE_VERSION_CHECK", "true")
+ext.IS_GRADLE_VERSION_CHECK = Boolean.parseBoolean(GRADLE_VERSION_CHECK)
 
 // COMPILE_WEBKIT specifies whether to build all of webkit.
 defineProperty("COMPILE_WEBKIT", "false")
@@ -343,7 +348,7 @@ defineProperty("FULL_TEST", "false")
 ext.IS_FULL_TEST = Boolean.parseBoolean(FULL_TEST);
 
 // Specifies whether to run robot-based visual tests (only used when FULL_TEST is also enabled)
-defineProperty("USE_ROBOT", "true")
+defineProperty("USE_ROBOT", "false")
 ext.IS_USE_ROBOT = Boolean.parseBoolean(USE_ROBOT);
 
 // Specified whether to run tests in headless mode
@@ -687,7 +692,32 @@ if (Integer.parseInt(NUM_COMPILE_THREADS.toString()) < 1) {
 
 // Check that Gradle 1.8 is in use.
 if (gradle.gradleVersion != "1.8") {
-    logger.warn("Unsupported gradle version $gradle.gradleVersion in use. Only 1.8 is supported")
+    def ver = gradle.gradleVersion.split("[\\.]");
+    def gradleMajor = Integer.parseInt(ver[0]);
+    def gradleMinor = Integer.parseInt(ver[1]);
+    def err = "";
+    if (gradleMajor != 1) {
+        err = "Gradle major version is incompatible: ${gradle.gradleVersion}; supported version is 1.8";
+    } else {
+        if (gradleMinor < 8) {
+            err = "Gradle version too old: ${gradle.gradleVersion}; must be at least 1.8"
+        }
+
+        // Blacklisted versions of gradle
+        if (gradleMinor == 11) {
+            err = "JavaFX fails to build with Gradle ${gradle.gradleVersion}; supported version is 1.8"
+        }
+    }
+
+    if (IS_GRADLE_VERSION_CHECK && err != "") {
+        fail(err);
+    }
+
+    logger.warn("*****************************************************************");
+    logger.warn("Unsupported gradle version $gradle.gradleVersion in use.");
+    logger.warn("Only version 1.8 is supported. Use this version at your own risk");
+    if ( err != "") logger.warn(err);
+    logger.warn("*****************************************************************");
 }
 
 /******************************************************************************
@@ -808,6 +838,7 @@ void addNative(Project project, String name, List<String> includeTargets) {
             }
             if (properties.javahClasspath == null) {
                 classpath = project.files(project.sourceSets.main.output.classesDir)
+                classpath += project.sourceSets.main.compileClasspath
             } else {
                 classpath = project.files(properties.javahClasspath)
             }
@@ -1111,10 +1142,14 @@ allprojects {
     // entire SDK, a different javadoc command is used (see the javadoc task on the top level)
     javadoc {
         enabled = IS_BUILD_JAVADOC
-        exclude("com/**/*", "javafx/scene/ParentDesignInfo*", "Compile*", "javafx/builder/**/*");
+        exclude("com/**/*", "javafx/scene/ParentDesignInfo*", "Compile*", "javafx/builder/**/*", "javafx/scene/accessibility/**/*");
         executable = JAVADOC;
         options.windowTitle("JavaFX Project ${project.name} ${RELEASE_NAME}")
-        options.links(JDK_DOCS);
+        if (BUILD_CLOSED) {
+            options.linksOffline(JDK_DOCS, JDK_DOCS_CLOSED);
+        } else {
+            options.links(JDK_DOCS);
+        }
         options.addBooleanOption("XDignore.symbol.file").setValue(true);
         options.addBooleanOption("Xdoclint:none").setValue(!IS_DOC_LINT);
         options.addBooleanOption("javafx").setValue(true);
@@ -2388,11 +2423,15 @@ task javadoc(type: Javadoc) {
     classpath += files(projectsToDocument.collect { project ->
         project.sourceSets.main.output
     });
-    exclude("com/**/*", "javafx/scene/ParentDesignInfo*", "Compile*", "javafx/builder/**/*");
+    exclude("com/**/*", "javafx/scene/ParentDesignInfo*", "Compile*", "javafx/builder/**/*", "javafx/scene/accessibility/**/*");
     options.windowTitle("${javadocTitle}")
     options.header("${javadocHeader}")
     options.bottom("${javadocBottom}")
-    options.links(JDK_DOCS);
+    if (BUILD_CLOSED) {
+        options.linksOffline(JDK_DOCS, JDK_DOCS_CLOSED);
+    } else {
+        options.links(JDK_DOCS);
+    }
     options.addBooleanOption("XDignore.symbol.file").setValue(true);
     options.addBooleanOption("Xdoclint:none").setValue(!IS_DOC_LINT);
     options.addBooleanOption("javafx").setValue(true);

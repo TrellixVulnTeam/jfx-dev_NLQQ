@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -51,6 +51,9 @@ import javafx.css.StyleOrigin;
 import javafx.css.Styleable;
 import javafx.css.StyleableObjectProperty;
 import javafx.css.StyleableProperty;
+import javafx.scene.accessibility.Action;
+import javafx.scene.accessibility.Attribute;
+import javafx.scene.accessibility.Role;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.text.Font;
@@ -634,10 +637,12 @@ public abstract class TextInputControl extends Control {
         int last = wordIterator.following(Utils.clamp(0, getCaretPosition(), textLength-1));
         int current = wordIterator.next();
 
-        // skip the non-word region, then move/select to the beginning of the word.
+        // Skip non-word characters to the beginning of next word, but
+        // stop at newline. Then move the caret or select a range.
         while (current != BreakIterator.DONE) {
             for (int p=last; p<=current; p++) {
-                if (Character.isLetterOrDigit(text.charAt(Utils.clamp(0, p, textLength-1)))) {
+                char ch = text.charAt(Utils.clamp(0, p, textLength-1));
+                if (Character.isLetterOrDigit(ch) || ch == '\n') {
                     if (select) {
                         selectRange(getAnchor(), p);
                     } else {
@@ -1058,6 +1063,7 @@ public abstract class TextInputControl extends Control {
 
         private void invalidate() {
             markInvalid();
+            accSendNotification(Attribute.TITLE);
         }
 
         @Override public void bind(ObservableValue<? extends String> observable) {
@@ -1202,4 +1208,30 @@ public abstract class TextInputControl extends Control {
         return getClassCssMetaData();
     }
 
+    /** @treatAsPrivate */
+    @Override
+    public Object accGetAttribute(Attribute attribute, Object... parameters) {
+        switch (attribute) {
+            case TITLE: {
+                String text = getText();
+                if (text == null || text.isEmpty()) {
+                    text = getPromptText();
+                }
+                return text;
+            }
+            default: return super.accGetAttribute(attribute, parameters);
+        }
+    }
+
+    /** @treatAsPrivate */
+    @Override 
+    public void accExecuteAction(Action action, Object... parameters) {
+        switch (action) {
+            case SET_TITLE: {
+                String value = (String) parameters[0];
+                if (value != null) setText(value);
+            }
+            default: super.accExecuteAction(action, parameters);
+        }
+    }
 }

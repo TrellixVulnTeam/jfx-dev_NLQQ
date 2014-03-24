@@ -31,6 +31,11 @@
 #                                                                                   #
 #####################################################################################
 
+# By default, the build will 'fail fast' if the version of gradle is incompatible.
+# Set this flag to false to have it print a warning and try to build anyway.
+
+#GRADLE_VERSION_CHECK = false
+
 # These properties give developers the chance to skip building WebKit and/or
 # GStreamer. WebKit takes a fair amount of time to build (more than 50% of the
 # overall full build time is taken by WebKit), so allowing a developer to
@@ -61,7 +66,7 @@
 # Specifies whether to enable robot-based visual tests when running a full test.
 # This flag is ignored if FULL_TEST is false.
 
-#USE_ROBOT = false
+#USE_ROBOT = true
 
 # Specifies whether to run system tests that depend on AWT.
 # This flag is ignored if FULL_TEST is false.
