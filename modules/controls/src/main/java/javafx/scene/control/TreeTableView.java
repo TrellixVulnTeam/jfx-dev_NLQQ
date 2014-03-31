@@ -76,6 +76,7 @@ import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.event.EventType;
 import javafx.scene.Node;
+import javafx.scene.accessibility.Action;
 import javafx.scene.accessibility.Attribute;
 import javafx.scene.accessibility.Role;
 import javafx.scene.layout.GridPane;
@@ -378,24 +379,19 @@ public class TreeTableView<S> extends Control {
 
         // watch for changes to the sort order list - and when it changes run
         // the sort method.
-        getSortOrder().addListener(new ListChangeListener<TreeTableColumn<S,?>>() {
-            @Override public void onChanged(ListChangeListener.Change<? extends TreeTableColumn<S,?>> c) {
-                doSort(TableUtil.SortEventType.SORT_ORDER_CHANGE, c);
-            }
+        getSortOrder().addListener((ListChangeListener.Change<? extends TreeTableColumn<S, ?>> c) -> {
+            doSort(TableUtil.SortEventType.SORT_ORDER_CHANGE, c);
         });
 
         // We're watching for changes to the content width such
         // that the resize policy can be run if necessary. This comes from
         // TreeTableViewSkin.
-        getProperties().addListener(new MapChangeListener<Object, Object>() {
-            @Override
-            public void onChanged(Change<? extends Object, ? extends Object> c) {
-                if (c.wasAdded() && TableView.SET_CONTENT_WIDTH.equals(c.getKey())) {
-                    if (c.getValueAdded() instanceof Number) {
-                        setContentWidth((Double) c.getValueAdded());
-                    }
-                    getProperties().remove(TableView.SET_CONTENT_WIDTH);
+        getProperties().addListener((MapChangeListener<Object, Object>) c -> {
+            if (c.wasAdded() && TableView.SET_CONTENT_WIDTH.equals(c.getKey())) {
+                if (c.getValueAdded() instanceof Number) {
+                    setContentWidth((Double) c.getValueAdded());
                 }
+                getProperties().remove(TableView.SET_CONTENT_WIDTH);
             }
         });
 
@@ -636,24 +632,22 @@ public class TreeTableView<S> extends Control {
     // we use this to forward events that have bubbled up TreeItem instances
     // to the TreeTableViewSkin, to force it to recalculate teh item count and redraw
     // if necessary
-    private final EventHandler<TreeItem.TreeModificationEvent<S>> rootEvent = new EventHandler<TreeItem.TreeModificationEvent<S>>() {
-        @Override public void handle(TreeItem.TreeModificationEvent<S> e) {
-            // this forces layoutChildren at the next pulse, and therefore
-            // updates the item count if necessary
-            EventType<?> eventType = e.getEventType();
-            boolean match = false;
-            while (eventType != null) {
-                if (eventType.equals(TreeItem.<S>expandedItemCountChangeEvent())) {
-                    match = true;
-                    break;
-                }
-                eventType = eventType.getSuperType();
+    private final EventHandler<TreeItem.TreeModificationEvent<S>> rootEvent = e -> {
+        // this forces layoutChildren at the next pulse, and therefore
+        // updates the item count if necessary
+        EventType<?> eventType = e.getEventType();
+        boolean match = false;
+        while (eventType != null) {
+            if (eventType.equals(TreeItem.<S>expandedItemCountChangeEvent())) {
+                match = true;
+                break;
             }
-            
-            if (match) {
-                expandedItemCountDirty = true;
-                requestLayout();
-            }
+            eventType = eventType.getSuperType();
+        }
+
+        if (match) {
+            expandedItemCountDirty = true;
+            requestLayout();
         }
     };
     
@@ -704,43 +698,33 @@ public class TreeTableView<S> extends Control {
         }
     };
     
-    private final InvalidationListener columnVisibleObserver = new InvalidationListener() {
-        @Override public void invalidated(Observable valueModel) {
-            updateVisibleLeafColumns();
-        }
+    private final InvalidationListener columnVisibleObserver = valueModel -> {
+        updateVisibleLeafColumns();
     };
     
-    private final InvalidationListener columnSortableObserver = new InvalidationListener() {
-        @Override public void invalidated(Observable valueModel) {
-            TreeTableColumn col = (TreeTableColumn) ((BooleanProperty)valueModel).getBean();
-            if (! getSortOrder().contains(col)) return;
-            doSort(TableUtil.SortEventType.COLUMN_SORTABLE_CHANGE, col);
-        }
+    private final InvalidationListener columnSortableObserver = valueModel -> {
+        TreeTableColumn col = (TreeTableColumn) ((BooleanProperty)valueModel).getBean();
+        if (! getSortOrder().contains(col)) return;
+        doSort(TableUtil.SortEventType.COLUMN_SORTABLE_CHANGE, col);
     };
 
-    private final InvalidationListener columnSortTypeObserver = new InvalidationListener() {
-        @Override public void invalidated(Observable valueModel) {
-            TreeTableColumn col = (TreeTableColumn) ((ObjectProperty)valueModel).getBean();
-            if (! getSortOrder().contains(col)) return;
-            doSort(TableUtil.SortEventType.COLUMN_SORT_TYPE_CHANGE, col);
-        }
+    private final InvalidationListener columnSortTypeObserver = valueModel -> {
+        TreeTableColumn col = (TreeTableColumn) ((ObjectProperty)valueModel).getBean();
+        if (! getSortOrder().contains(col)) return;
+        doSort(TableUtil.SortEventType.COLUMN_SORT_TYPE_CHANGE, col);
     };
     
-    private final InvalidationListener columnComparatorObserver = new InvalidationListener() {
-        @Override public void invalidated(Observable valueModel) {
-            TreeTableColumn col = (TreeTableColumn) ((SimpleObjectProperty)valueModel).getBean();
-            if (! getSortOrder().contains(col)) return;
-            doSort(TableUtil.SortEventType.COLUMN_COMPARATOR_CHANGE, col);
-        }
+    private final InvalidationListener columnComparatorObserver = valueModel -> {
+        TreeTableColumn col = (TreeTableColumn) ((SimpleObjectProperty)valueModel).getBean();
+        if (! getSortOrder().contains(col)) return;
+        doSort(TableUtil.SortEventType.COLUMN_COMPARATOR_CHANGE, col);
     };
     
     /* proxy pseudo-class state change from selectionModel's cellSelectionEnabledProperty */
-    private final InvalidationListener cellSelectionModelInvalidationListener = new InvalidationListener() {
-        @Override public void invalidated(Observable o) {
-            boolean isCellSelection = ((BooleanProperty)o).get();
-            pseudoClassStateChanged(PSEUDO_CLASS_CELL_SELECTION,  isCellSelection);
-            pseudoClassStateChanged(PSEUDO_CLASS_ROW_SELECTION,  !isCellSelection);
-        }
+    private final InvalidationListener cellSelectionModelInvalidationListener = o -> {
+        boolean isCellSelection = ((BooleanProperty)o).get();
+        pseudoClassStateChanged(PSEUDO_CLASS_CELL_SELECTION,  isCellSelection);
+        pseudoClassStateChanged(PSEUDO_CLASS_ROW_SELECTION,  !isCellSelection);
     };
     
     private WeakEventHandler<TreeItem.TreeModificationEvent<S>> weakRootEventListener;
@@ -1858,7 +1842,74 @@ public class TreeTableView<S> extends Control {
         return new TreeTableViewSkin<S>(this);
     }
 
-    
+
+
+    /***************************************************************************
+     *                                                                         *
+     * Accessibility handling                                                  *
+     *                                                                         *
+     **************************************************************************/
+
+    /** @treatAsPrivate */
+    @Override public Object accGetAttribute(Attribute attribute, Object... parameters) {
+        switch (attribute) {
+            case ROLE: return Role.TREE_TABLE_VIEW;
+
+            case TREE_ITEM_COUNT:
+            case ROW_COUNT: return getExpandedItemCount();
+
+            // --- TableView-specific attributes
+            case COLUMN_COUNT: return getVisibleLeafColumns().size();
+            /*
+             * TreeTableViewSkin returns TreeTableRows back to TreeTableView.
+             * TreeTableRowSkin returns TreeTableCells back to TreeTableRow.
+             */
+            case SELECTED_CELLS: {
+                ObservableList<TreeTableRow<S>> rows = (ObservableList<TreeTableRow<S>>)super.accGetAttribute(attribute, parameters);
+                List<Node> selection = new ArrayList<>();
+                for (TreeTableRow<S> row : rows) {
+                    ObservableList<Node> cells = (ObservableList<Node>)row.accGetAttribute(attribute, parameters);
+                    if (cells != null) selection.addAll(cells);
+                }
+                return FXCollections.observableArrayList(selection);
+            }
+            case FOCUS_ITEM:
+            case CELL_AT_ROW_COLUMN: {
+                TreeTableRow<S> row = (TreeTableRow<S>)super.accGetAttribute(attribute, parameters);
+                return row != null ? row.accGetAttribute(attribute, parameters) : null;
+            }
+            case MULTIPLE_SELECTION: {
+                MultipleSelectionModel sm = getSelectionModel();
+                return sm != null && sm.getSelectionMode() == SelectionMode.MULTIPLE;
+            }
+            case COLUMN_INDEX: //Skin
+            case HEADER: //Skin
+
+                // --- TreeView-specific attributes
+            case ROW_AT_INDEX: //Skin
+            case SELECTED_ROWS: //Skin
+            case TREE_ITEM_AT_INDEX: //Skin
+
+            case VERTICAL_SCROLLBAR: //Skin
+            case HORIZONTAL_SCROLLBAR: // Skin
+
+            default: return super.accGetAttribute(attribute, parameters);
+        }
+    }
+
+    /** @treatAsPrivate */
+    @Override public void accExecuteAction(Action action, Object... parameters) {
+        switch (action) {
+            case SCROLL_TO_INDEX: {
+                int index = (int) parameters[0];
+                scrollTo(index);
+                break;
+            }
+            default: super.accExecuteAction(action, parameters);
+        }
+    }
+
+
 
     /***************************************************************************
      *                                                                         *
@@ -2014,11 +2065,9 @@ public class TreeTableView<S> extends Control {
 
             this.treeTableView = treeTableView;
             
-            cellSelectionEnabledProperty().addListener(new InvalidationListener() {
-                @Override public void invalidated(Observable o) {
-                    isCellSelectionEnabled();
-                    clearSelection();
-                }
+            cellSelectionEnabledProperty().addListener(o -> {
+                isCellSelectionEnabled();
+                clearSelection();
             });
         }
 
@@ -2119,17 +2168,9 @@ public class TreeTableView<S> extends Control {
     // package for testing
     static class TreeTableViewArrayListSelectionModel<S> extends TreeTableViewSelectionModel<S> {
 
-        private final MappingChange.Map<TreeTablePosition<S,?>,TreeItem<S>> cellToItemsMap = new MappingChange.Map<TreeTablePosition<S,?>, TreeItem<S>>() {
-            @Override public TreeItem<S> map(TreeTablePosition<S,?> f) {
-                return getModelItem(f.getRow());
-            }
-        };
+        private final MappingChange.Map<TreeTablePosition<S,?>,TreeItem<S>> cellToItemsMap = f -> getModelItem(f.getRow());
 
-        private final MappingChange.Map<TreeTablePosition<S,?>,Integer> cellToIndicesMap = new MappingChange.Map<TreeTablePosition<S,?>, Integer>() {
-            @Override public Integer map(TreeTablePosition<S,?> f) {
-                return f.getRow();
-            }
-        };
+        private final MappingChange.Map<TreeTablePosition<S,?>,Integer> cellToIndicesMap = f -> f.getRow();
 
         /***********************************************************************
          *                                                                     *
@@ -2144,11 +2185,8 @@ public class TreeTableView<S> extends Control {
             this.treeTableView.rootProperty().addListener(weakRootPropertyListener);
             updateTreeEventListener(null, treeTableView.getRoot());
 
-            selectedCellsMap = new SelectedCellsMap<>(new ListChangeListener<TreeTablePosition<S,?>>() {
-                @Override
-                public void onChanged(final ListChangeListener.Change<? extends TreeTablePosition<S,?>> c) {
-                    handleSelectedCellsListChangeEvent(c);
-                }
+            selectedCellsMap = new SelectedCellsMap<>(c -> {
+                handleSelectedCellsListChangeEvent(c);
             });
 
             selectedItems = new ReadOnlyUnbackedObservableList<TreeItem<S>>() {
@@ -2180,17 +2218,14 @@ public class TreeTableView<S> extends Control {
             }
             
             if (newRoot != null) {
-                weakTreeItemListener = new WeakEventHandler(treeItemListener);
+                weakTreeItemListener = new WeakEventHandler<>(treeItemListener);
                 newRoot.addEventHandler(TreeItem.<S>expandedItemCountChangeEvent(), weakTreeItemListener);
             }
         }
         
-        private ChangeListener<TreeItem<S>> rootPropertyListener = new ChangeListener<TreeItem<S>>() {
-            @Override public void changed(ObservableValue<? extends TreeItem<S>> observable, 
-                    TreeItem<S> oldValue, TreeItem<S> newValue) {
-                clearSelection();
-                updateTreeEventListener(oldValue, newValue);
-            }
+        private ChangeListener<TreeItem<S>> rootPropertyListener = (observable, oldValue, newValue) -> {
+            clearSelection();
+            updateTreeEventListener(oldValue, newValue);
         };
         
         private EventHandler<TreeItem.TreeModificationEvent<S>> treeItemListener = new EventHandler<TreeItem.TreeModificationEvent<S>>() {
@@ -2318,7 +2353,7 @@ public class TreeTableView<S> extends Control {
                 shiftSelection(startRow, shift, new Callback<ShiftParams, Void>() {
                     @Override public Void call(ShiftParams param) {
                         final int clearIndex = param.getClearIndex();
-                        TreeTablePosition oldTP = null;
+                        TreeTablePosition<S,?> oldTP = null;
                         if (clearIndex > -1) {
                             for (int i = 0; i < selectedCellsMap.size(); i++) {
                                 TreeTablePosition<S,?> tp = selectedCellsMap.get(i);
@@ -2331,7 +2366,7 @@ public class TreeTableView<S> extends Control {
                         }
                         
                         if (oldTP != null && param.isSelected()) {
-                            TreeTablePosition<S,?> newTP = new TreeTablePosition<S,Object>(
+                            TreeTablePosition<S,?> newTP = new TreeTablePosition<>(
                                     treeTableView, param.getSetIndex(), oldTP.getTableColumn());
 
                             selectedCellsMap.add(newTP);
@@ -2651,8 +2686,8 @@ public class TreeTableView<S> extends Control {
             updateSelectedIndex(maxRow);
             focus(maxRow, (TreeTableColumn<S,?>)maxColumn);
 
-            final int startChangeIndex = selectedCellsMap.indexOf(new TreeTablePosition(treeTableView, minRow, (TreeTableColumn<S,?>)minColumn));
-            final int endChangeIndex = selectedCellsMap.indexOf(new TreeTablePosition(treeTableView, maxRow, (TreeTableColumn<S,?>)maxColumn));
+            final int startChangeIndex = selectedCellsMap.indexOf(new TreeTablePosition<>(treeTableView, minRow, (TreeTableColumn<S,?>)minColumn));
+            final int endChangeIndex = selectedCellsMap.indexOf(new TreeTablePosition<>(treeTableView, maxRow, (TreeTableColumn<S,?>)maxColumn));
             handleSelectedCellsListChangeEvent(new NonIterableChange.SimpleAddChange<>(startChangeIndex, endChangeIndex + 1, selectedCellsSeq));
         }
 
@@ -3014,11 +3049,8 @@ public class TreeTableView<S> extends Control {
             EMPTY_CELL = pos;
         }
         
-        private final ChangeListener<TreeItem<S>> rootPropertyListener = new ChangeListener<TreeItem<S>>() {
-            @Override
-            public void changed(ObservableValue<? extends TreeItem<S>> observable, TreeItem<S> oldValue, TreeItem<S> newValue) {
-                updateTreeEventListener(oldValue, newValue);
-            }
+        private final ChangeListener<TreeItem<S>> rootPropertyListener = (observable, oldValue, newValue) -> {
+            updateTreeEventListener(oldValue, newValue);
         };
                 
         private final WeakChangeListener<TreeItem<S>> weakRootPropertyListener =
@@ -3082,10 +3114,8 @@ public class TreeTableView<S> extends Control {
                 if(shift != 0) {
                     final int newFocus = getFocusedIndex() + shift;
                     if (newFocus >= 0) {
-                        Platform.runLater(new Runnable() {
-                            @Override public void run() {
-                                focus(newFocus);
-                            }
+                        Platform.runLater(() -> {
+                            focus(newFocus);
                         });
                     }
                 } 
@@ -3272,51 +3302,6 @@ public class TreeTableView<S> extends Control {
             int columnIndex = treeTableView.getVisibleLeafIndex(column);
             int newColumnIndex = columnIndex + offset;
             return treeTableView.getVisibleLeafColumn(newColumnIndex);
-        }
-    }
-
-    /** @treatAsPrivate */
-    @Override
-    public Object accGetAttribute(Attribute attribute, Object... parameters) {
-        switch (attribute) {
-            case ROLE: return Role.TREE_TABLE_VIEW;
-
-            case TREE_ITEM_COUNT:
-            case ROW_COUNT: return getExpandedItemCount();
-
-            // --- TableView-specific attributes
-            case COLUMN_COUNT: return getVisibleLeafColumns().size();
-            /*
-             * TreeTableViewSkin returns TreeTableRows back to TreeTableView.
-             * TreeTableRowSkin returns TreeTableCells back to TreeTableRow.
-             */
-            case SELECTED_CELLS: {
-                ObservableList<TreeTableRow<S>> rows = (ObservableList<TreeTableRow<S>>)super.accGetAttribute(attribute, parameters);
-                List<Node> selection = new ArrayList<>();
-                for (TreeTableRow<S> row : rows) {
-                    ObservableList<Node> cells = (ObservableList<Node>)row.accGetAttribute(attribute, parameters);
-                    if (cells != null) selection.addAll(cells);
-                }
-                return FXCollections.observableArrayList(selection);
-            }
-            case FOCUS_ITEM:
-            case CELL_AT_ROWCOLUMN: {
-                TreeTableRow<S> row = (TreeTableRow<S>)super.accGetAttribute(attribute, parameters);
-                return row != null ? row.accGetAttribute(attribute, parameters) : null;
-            }
-            case MULTIPLE_SELECTION: {
-                MultipleSelectionModel sm = getSelectionModel();
-                return sm != null && sm.getSelectionMode() == SelectionMode.MULTIPLE;
-            }
-            case COLUMN_INDEX: //Skin
-            case HEADER: //Skin
-
-            // --- TreeView-specific attributes
-            case ROW_AT_INDEX: //Skin
-            case SELECTED_ROWS: //Skin
-            case TREE_ITEM_AT_INDEX: //Skin
-
-            default: return super.accGetAttribute(attribute, parameters);
         }
     }
 }

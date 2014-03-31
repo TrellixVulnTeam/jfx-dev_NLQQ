@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -693,7 +693,7 @@ public class TabPaneTest {
         root.getChildren().add(tabPane);
         show();
 
-        root.impl_reapplyCSS();
+        root.applyCss();
         root.resize(300, 300);
         root.layout();
         
@@ -723,17 +723,15 @@ public class TabPaneTest {
         root.getChildren().add(tabPane);
         show();
 
-        root.impl_reapplyCSS();
+        root.applyCss();
         root.resize(300, 300);
         root.layout();
         
         tk.firePulse();        
         assertTrue(tabPane.isFocused());
 
-        tab2.setOnSelectionChanged(new EventHandler<Event>() {
-            @Override public void handle(Event event) {
-                assertEquals(0, counter++);
-            }
+        tab2.setOnSelectionChanged(event -> {
+            assertEquals(0, counter++);
         });
 
         double xval = (tabPane.localToScene(tabPane.getLayoutBounds())).getMinX();
@@ -790,11 +788,9 @@ public class TabPaneTest {
         tabPane.getTabs().add(tab2);
         tabPane.getTabs().add(tab3);        
 
-        tabPane.getSelectionModel().selectedItemProperty().addListener(new ChangeListener<Tab>() {
-            public void changed(ObservableValue<? extends Tab> ov, Tab t, Tab t1) {
-                assertEquals(t.getText(), "one");
-                assertEquals(t1.getText(), "two");
-            }            
+        tabPane.getSelectionModel().selectedItemProperty().addListener((ov, t, t1) -> {
+            assertEquals(t.getText(), "one");
+            assertEquals(t1.getText(), "two");
         });
         
         assertEquals("one", tabPane.getTabs().get(0).getText());
@@ -813,10 +809,8 @@ public class TabPaneTest {
     @Test public void focusTraversalShouldLookInsideEmbeddedEngines() {
 
         Button b1 = new Button("Button1");
-        final ChangeListener<Boolean> focusListener = new ChangeListener<Boolean>() {
-            @Override public void changed(ObservableValue<? extends Boolean> observable, Boolean oldVal, Boolean newVal) {
-                button1Focused = true;
-            }
+        final ChangeListener<Boolean> focusListener = (observable, oldVal, newVal) -> {
+            button1Focused = true;
         };
         b1.focusedProperty().addListener(focusListener);
 
@@ -842,12 +836,10 @@ public class TabPaneTest {
 
         final KeyEvent tabEvent = new KeyEvent(KeyEvent.KEY_PRESSED, "", "", KeyCodeMap.valueOf(0x09),
                                                          false, false, false, false);
-        Platform.runLater(new Runnable() {
-            @Override public void run() {
-                tabPane.requestFocus();
-                Event.fireEvent(tabPane, tabEvent);
+        Platform.runLater(() -> {
+            tabPane.requestFocus();
+            Event.fireEvent(tabPane, tabEvent);
 
-            }
         });
 
         assertTrue(button1Focused);

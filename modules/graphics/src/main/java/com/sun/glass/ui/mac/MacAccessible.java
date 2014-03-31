@@ -25,6 +25,9 @@
 
 package com.sun.glass.ui.mac;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import javafx.collections.ObservableList;
@@ -106,6 +109,9 @@ final class MacAccessible extends PlatformAccessible {
         // Custom attributes
         NSAccessibilityVisitedAttribute(VISITED, MacVariant::createNSNumberForBoolean),
 
+        // NSAccessibilityMenuRole
+        NSAccessibilitySelectedChildrenAttribute(null, MacVariant::createNSArray),
+
         // NSAccessibilityStaticText
         NSAccessibilityNumberOfCharactersAttribute(TITLE, MacVariant::createNSNumberForInt),
         NSAccessibilitySelectedTextAttribute(SELECTION_START, MacVariant::createNSString),
@@ -146,7 +152,7 @@ final class MacAccessible extends PlatformAccessible {
         NSAccessibilityStringForRangeParameterizedAttribute(TITLE, MacVariant::createNSString, MacVariant.NSValue_range),
         NSAccessibilityRangeForLineParameterizedAttribute(TITLE, MacVariant::createNSValueForRange, MacVariant.NSNumber_Int),
         NSAccessibilityAttributedStringForRangeParameterizedAttribute(TITLE, MacVariant::createNSAttributedString, MacVariant.NSValue_range),
-        NSAccessibilityCellForColumnAndRowParameterizedAttribute(CELL_AT_ROWCOLUMN, MacVariant::createNSObject, MacVariant.NSArray_int),
+        NSAccessibilityCellForColumnAndRowParameterizedAttribute(CELL_AT_ROW_COLUMN, MacVariant::createNSObject, MacVariant.NSArray_int),
         ;
 
         long ptr; /* Initialized natively - treat as final */
@@ -218,10 +224,7 @@ final class MacAccessible extends PlatformAccessible {
                 /* Expanded only needed for Combobox, and not for PopUpButton */
 //                MacAttributes.NSAccessibilityExpandedAttribute,
             },
-            new MacActions[] {
-                MacActions.NSAccessibilityPressAction,
-                MacActions.NSAccessibilityShowMenuAction,
-            },
+            new MacActions[] {MacActions.NSAccessibilityPressAction},
             null
         ),
         NSAccessibilityTabGroupRole(new Role[] {Role.TAB_PANE, Role.PAGINATION},
@@ -241,6 +244,26 @@ final class MacAccessible extends PlatformAccessible {
                 MacAttributes.NSAccessibilityMinValueAttribute,
             },
             null
+        ),
+        NSAccessibilityMenuRole(Role.CONTEXT_MENU,
+            new MacAttributes[] {
+                MacAttributes.NSAccessibilitySelectedChildrenAttribute,
+            },
+            new MacActions[] {
+                MacActions.NSAccessibilityPressAction,
+                MacActions.NSAccessibilityCancelAction,
+            }
+        ),
+        NSAccessibilityMenuItemRole(Role.MENU_ITEM,
+            new MacAttributes[] {
+                MacAttributes.NSAccessibilityEnabledAttribute,
+                MacAttributes.NSAccessibilityTitleAttribute,
+                MacAttributes.NSAccessibilitySelectedAttribute,
+            },
+            new MacActions[] {
+                MacActions.NSAccessibilityPressAction,
+                MacActions.NSAccessibilityCancelAction,
+            }
         ),
         /* 
          * ProgressIndicator can be either a ProgressIndicatorRole or a BusyIndicatorRole.
@@ -407,9 +430,7 @@ final class MacAccessible extends PlatformAccessible {
                 MacAttributes.NSAccessibilityEnabledAttribute,
                 MacAttributes.NSAccessibilityOverflowButtonAttribute,
             },
-            new MacActions[] {
-                MacActions.NSAccessibilityShowMenuAction,
-            }
+            null
         ),
         ;
 
@@ -417,7 +438,7 @@ final class MacAccessible extends PlatformAccessible {
         Role[] jfxRoles;
         MacAttributes[] macAttributes;
         MacAttributes[] macParameterizedAttributes;
-        MacActions[] macActions;
+        List<MacActions> macActions;
         MacRoles(Role jfxRole, MacAttributes[] macAttributes, MacActions[] macActions) {
             this(new Role[] {jfxRole}, macAttributes, macActions, null);
         }
@@ -425,7 +446,7 @@ final class MacAccessible extends PlatformAccessible {
         MacRoles(Role[] jfxRoles, MacAttributes[] macAttributes, MacActions[] macActions, MacAttributes[] macParameterizedAttributes) {
             this.jfxRoles = jfxRoles;
             this.macAttributes = macAttributes;
-            this.macActions = macActions;
+            this.macActions = macActions != null ? Arrays.asList(macActions) : null;
             this.macParameterizedAttributes = macParameterizedAttributes;
         }
 
@@ -501,7 +522,7 @@ final class MacAccessible extends PlatformAccessible {
         NSAccessibilityPickAction,
         NSAccessibilityPressAction(Action.FIRE),
         NSAccessibilityRaiseAction,
-        NSAccessibilityShowMenuAction;
+        NSAccessibilityShowMenuAction(Action.SHOW_MENU);
 
         long ptr; /* Initialized natively - treat as final */
         Action jfxAction;
@@ -602,26 +623,15 @@ final class MacAccessible extends PlatformAccessible {
         super.dispose();
     }
 
-    private long getContainer(Node node, Role targetRole) {
-        while (node != null) {
-            Accessible acc = node.getAccessible();
-            Role role = (Role)acc.getAttribute(ROLE);
-            if (role == targetRole) return getAccessible(node);
-            node = (Node)acc.getAttribute(PARENT);
-        }
-        return 0;
-    }
-
     @Override
     public void sendNotification(Attribute notification) {
         MacNotifications macNotification;
         switch (notification) {
             case SELECTED_TAB:
             case SELECTED_PAGE: {
-                Scene scene = (Scene)getAttribute(SCENE);
-                if (scene != null) {
-                    PlatformAccessible acc = scene.getAccessible().impl_getDelegate();
-                    long id = acc.getView().getNativeView();
+                View view = getRootView((Scene)getAttribute(SCENE));
+                if (view != null) {
+                    long id = view.getNativeView();
                     NSAccessibilityPostNotification(id, MacNotifications.NSAccessibilityFocusedUIElementChangedNotification.ptr);
                 }
                 return;
@@ -632,9 +642,23 @@ final class MacAccessible extends PlatformAccessible {
             case SELECTED_CELLS:
                 macNotification = MacNotifications.NSAccessibilitySelectedCellsChangedNotification;
                 break;
-            case FOCUS_NODE:
+            case FOCUS_NODE: {
+                Node node = (Node)getAttribute(FOCUS_NODE);
+                if (node != null) {
+                    Role role = (Role)node.getAccessible().getAttribute(ROLE);
+                    if (role == Role.MENU_ITEM) {
+                        long menu = getAccessible(getContainerNode(node, Role.CONTEXT_MENU));
+                        if (menu != 0) {
+                            NSAccessibilityPostNotification(menu, MacNotifications.NSAccessibilitySelectedChildrenChangedNotification.ptr);
+                            return;
+                        }
+                    }
+                }
                 macNotification = MacNotifications.NSAccessibilityFocusedUIElementChangedNotification;
                 break;
+            }
+            case FOCUSED:
+                return;
             case SELECTION_START:
             case SELECTION_END:
                 macNotification = MacNotifications.NSAccessibilitySelectedTextChangedNotification;
@@ -648,7 +672,7 @@ final class MacAccessible extends PlatformAccessible {
                 }
 
                 if (getAttribute(ROLE) == Role.TREE_ITEM) {
-                    long treeView = getContainer((Node)getAttribute(PARENT), Role.TREE_VIEW);
+                    long treeView = getAccessible(getContainerNode(Role.TREE_VIEW));
                     if (treeView != 0) {
                         NSAccessibilityPostNotification(treeView, MacNotifications.NSAccessibilityRowCountChangedNotification.ptr);
                     }
@@ -667,12 +691,16 @@ final class MacAccessible extends PlatformAccessible {
         return peer;
     }
 
-    static long getAccessible(Node node) {
-        if (node == null) return 0L;
-        Accessible acc = node.getAccessible();
-        if (acc == null) return 0L;
+    @SuppressWarnings("deprecation")
+    private View getRootView(Scene scene) {
+        if (scene == null) return null;
+        Accessible acc = scene.getAccessible();
+        if (acc == null) return null;
         MacAccessible macAcc = (MacAccessible)acc.impl_getDelegate();
-        return macAcc != null ? macAcc.getNativeAccessible() : 0;
+        if (macAcc == null || macAcc.isDisposed()) return null;
+        View view = macAcc.getView();
+        if (view == null || view.isClosed()) return null;
+        return view;
     }
 
     /* NSAccessibility Protocol - JNI entry points */
@@ -836,6 +864,21 @@ final class MacAccessible extends PlatformAccessible {
                         default:
                     }
                     break;
+                case NSAccessibilitySelectedChildrenAttribute: {
+                    /* Used for ContextMenu's*/
+                    Scene scene = (Scene)getAttribute(SCENE);
+                    if (scene != null) {
+                        Accessible acc = scene.getAccessible();
+                        if (acc != null) {
+                            Node focus = (Node)acc.getAttribute(FOCUS_NODE);
+                            if (focus != null) {
+                                long[] result = {getAccessible(focus)};
+                                return attr.map.apply(result);
+                            }
+                        }
+                    }
+                    return null;
+                }
                 default:
               }
         }
@@ -867,8 +910,9 @@ final class MacAccessible extends PlatformAccessible {
             case NSAccessibilityWindowAttribute:
             case NSAccessibilityTopLevelUIElementAttribute: {
                 Scene scene = (Scene)result;
-                PlatformAccessible acc = scene.getAccessible().impl_getDelegate();
-                result = acc.getView().getWindow().getNativeWindow();
+                View view = getRootView(scene);
+                if (view == null) return null;
+                result = view.getWindow().getNativeWindow();
                 break;
             }
             case NSAccessibilitySubroleAttribute: {
@@ -922,10 +966,9 @@ final class MacAccessible extends PlatformAccessible {
                     result = getAccessible((Parent)result);
                 } else {
                     /* Root node: return the NSView (instead of acc.getNativeAccessible()) */
-                    Scene scene = (Scene)getAttribute(SCENE);
-                    if (scene == null) return null;
-                    MacAccessible acc = (MacAccessible)scene.getAccessible().impl_getDelegate();
-                    result = acc.getView().getNativeView();
+                    View view = getRootView((Scene)getAttribute(SCENE));
+                    if (view == null) return null;
+                    result = view.getNativeView();
                 }
                 result = NSAccessibilityUnignoredAncestor((long)result);
                 break;
@@ -941,10 +984,8 @@ final class MacAccessible extends PlatformAccessible {
                  * NSAccessibilityPositionAttribute requires the point relative
                  * to the lower-left corner in screen.
                  */
-                Scene scene = (Scene)getAttribute(SCENE);
-                if (scene != null) {
-                    PlatformAccessible sceneAcc = scene.getAccessible().impl_getDelegate();
-                    View view = sceneAcc.getView();
+                View view = getRootView((Scene)getAttribute(SCENE));
+                if (view != null) {
                     Screen screen = view.getWindow().getScreen();
                     float height = screen.getHeight();
                     Bounds bounds = (Bounds)result;
@@ -1157,16 +1198,22 @@ final class MacAccessible extends PlatformAccessible {
     long[] accessibilityActionNames() {
         if (getView() != null) return null; /* Let NSView answer for the Scene */
         Role role = (Role)getAttribute(ROLE);
+        List<MacActions> actions = new  ArrayList<>();
         if (role != null) {
-            Stream<MacActions> actions = Stream.empty();
             MacRoles macRole = MacRoles.getRole(role);
             if (macRole != null && macRole.macActions != null) {
-                actions = Stream.concat(actions, Stream.of(macRole.macActions));
+                actions.addAll(macRole.macActions);
             }
-            return actions.mapToLong(a -> a.ptr).toArray();
+            /* 
+             * Consider add a attribute to indicate when the node
+             * has a menu instead of using the role.
+             */
+            if (role != Role.NODE && role != Role.PARENT) {
+                actions.add(MacActions.NSAccessibilityShowMenuAction);
+            }
         }
         /* Return empty array instead of null to prevent warnings in the accessibility verifier */
-        return new long[0];
+        return actions.stream().mapToLong(a -> a.ptr).toArray();
     }
 
     String accessibilityActionDescription(long action) {
@@ -1177,17 +1224,6 @@ final class MacAccessible extends PlatformAccessible {
         MacActions macAction = MacActions.getAction(action);
         if (macAction != null && macAction.jfxAction != null) {
             executeAction(macAction.jfxAction);
-        }
-        /* Consider adding SHOW_MENU JFX public Action API */
-        if (macAction == MacActions.NSAccessibilityShowMenuAction) {
-            Role role = (Role)getAttribute(ROLE);
-            if (role == Role.TOOLBAR) {
-                Node button = (Node)getAttribute(OVERFLOW_BUTTON);
-                if (button != null) {
-                    button.getAccessible().executeAction(Action.FIRE);
-                }
-                return;
-            }
         }
     }
 

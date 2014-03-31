@@ -510,7 +510,7 @@ public class Scene implements EventTarget {
             // The cssFlag is set to clean in either Node.processCSS or
             // Node.impl_processCSS(boolean)
             sceneRoot.impl_clearDirty(com.sun.javafx.scene.DirtyBits.NODE_CSS);
-            sceneRoot.processCSS(null);
+            sceneRoot.processCSS();
         }
     }
 
@@ -708,12 +708,15 @@ public class Scene implements EventTarget {
 
         Toolkit tk = Toolkit.getToolkit();
         tk.removeSceneTkPulseListener(scenePulseListener);
-        impl_peer.dispose();
-        impl_peer = null;
         if (accessible != null) {
+            disposeAccessibles();
+            Node root = getRoot();
+            if (root != null) root.releaseAccessible();
             accessible.dispose();
             accessible = null;
         }
+        impl_peer.dispose();
+        impl_peer = null;
 
         PerformanceTracker.logEvent("Scene.disposePeer finished");
     }
@@ -5994,7 +5997,7 @@ public class Scene implements EventTarget {
                 @Override
                 protected void invalidated() {
                     sceneEffectiveOrientationInvalidated();
-                    getRoot().impl_reapplyCSS();
+                    getRoot().applyCss();
                 }
 
                 @Override
@@ -6152,6 +6155,15 @@ public class Scene implements EventTarget {
      * @treatAsPrivate
      */
     public Accessible getAccessible() {
+        /*
+         * The accessible for the Scene should never be
+         * requested when the peer is not set.
+         * This can only happen in a error case where a
+         * descender of this Scene was not disposed and 
+         * it still being used by the AT client and trying
+         * to reach to the top level window.
+         */
+        if (impl_peer == null) return null;
         if (accessible == null) {
             accessible = new Accessible() {
                 @Override public Object getAttribute(Attribute attribute,

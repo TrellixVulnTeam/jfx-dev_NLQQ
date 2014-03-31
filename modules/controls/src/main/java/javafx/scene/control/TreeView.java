@@ -25,17 +25,23 @@
 
 package javafx.scene.control;
 
-import java.lang.ref.SoftReference;
-import java.util.*;
-
+import com.sun.javafx.css.converters.SizeConverter;
+import com.sun.javafx.scene.control.skin.TreeViewSkin;
+import javafx.application.Platform;
+import javafx.beans.DefaultProperty;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ObjectPropertyBase;
+import javafx.beans.property.ReadOnlyIntegerProperty;
+import javafx.beans.property.ReadOnlyIntegerWrapper;
+import javafx.beans.property.ReadOnlyObjectProperty;
+import javafx.beans.property.ReadOnlyObjectWrapper;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
-import javafx.collections.FXCollections;
+import javafx.beans.value.WeakChangeListener;
 import javafx.css.CssMetaData;
 import javafx.css.Styleable;
 import javafx.css.StyleableDoubleProperty;
@@ -43,25 +49,21 @@ import javafx.css.StyleableProperty;
 import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.event.EventType;
+import javafx.event.WeakEventHandler;
+import javafx.scene.accessibility.Action;
 import javafx.scene.accessibility.Attribute;
 import javafx.scene.accessibility.Role;
 import javafx.scene.control.TreeItem.TreeModificationEvent;
 import javafx.scene.layout.Region;
 import javafx.util.Callback;
 
-import javafx.event.WeakEventHandler;
-import com.sun.javafx.css.converters.SizeConverter;
-import com.sun.javafx.scene.control.skin.TreeViewSkin;
+import java.lang.ref.SoftReference;
 import java.lang.ref.WeakReference;
-
-import javafx.application.Platform;
-import javafx.beans.DefaultProperty;
-import javafx.beans.property.ReadOnlyIntegerProperty;
-import javafx.beans.property.ReadOnlyIntegerWrapper;
-import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.ReadOnlyObjectProperty;
-import javafx.beans.property.ReadOnlyObjectWrapper;
-import javafx.beans.value.WeakChangeListener;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * The TreeView control provides a view on to a tree root (of type 
@@ -211,7 +213,7 @@ public class TreeView<T> extends Control {
         return (EventType<EditEvent<T>>) EDIT_ANY_EVENT;
     }
     private static final EventType<?> EDIT_ANY_EVENT =
-            new EventType(Event.ANY, "TREE_VIEW_EDIT");
+            new EventType<>(Event.ANY, "TREE_VIEW_EDIT");
 
     /**
      * An EventType used to indicate that an edit event has started within the
@@ -224,7 +226,7 @@ public class TreeView<T> extends Control {
         return (EventType<EditEvent<T>>) EDIT_START_EVENT;
     }
     private static final EventType<?> EDIT_START_EVENT =
-            new EventType(editAnyEvent(), "EDIT_START");
+            new EventType<>(editAnyEvent(), "EDIT_START");
 
     /**
      * An EventType used to indicate that an edit event has just been canceled
@@ -238,7 +240,7 @@ public class TreeView<T> extends Control {
         return (EventType<EditEvent<T>>) EDIT_CANCEL_EVENT;
     }
     private static final EventType<?> EDIT_CANCEL_EVENT =
-            new EventType(editAnyEvent(), "EDIT_CANCEL");
+            new EventType<>(editAnyEvent(), "EDIT_CANCEL");
 
     /**
      * An EventType that is used to indicate that an edit in a TreeView has been
@@ -253,7 +255,7 @@ public class TreeView<T> extends Control {
         return (EventType<EditEvent<T>>) EDIT_COMMIT_EVENT;
     }
     private static final EventType<?> EDIT_COMMIT_EVENT =
-            new EventType(editAnyEvent(), "EDIT_COMMIT");
+            new EventType<>(editAnyEvent(), "EDIT_COMMIT");
     
     /**
      * Returns the number of levels of 'indentation' of the given TreeItem, 
@@ -355,24 +357,22 @@ public class TreeView<T> extends Control {
     // we use this to forward events that have bubbled up TreeItem instances
     // to the TreeViewSkin, to force it to recalculate teh item count and redraw
     // if necessary
-    private final EventHandler<TreeModificationEvent<T>> rootEvent = new EventHandler<TreeModificationEvent<T>>() {
-        @Override public void handle(TreeModificationEvent<T> e) {
-            // this forces layoutChildren at the next pulse, and therefore
-            // updates the item count if necessary
-            EventType<?> eventType = e.getEventType();
-            boolean match = false;
-            while (eventType != null) {
-                if (eventType.equals(TreeItem.<T>expandedItemCountChangeEvent())) {
-                    match = true;
-                    break;
-                }
-                eventType = eventType.getSuperType();
+    private final EventHandler<TreeModificationEvent<T>> rootEvent = e -> {
+        // this forces layoutChildren at the next pulse, and therefore
+        // updates the item count if necessary
+        EventType<?> eventType = e.getEventType();
+        boolean match = false;
+        while (eventType != null) {
+            if (eventType.equals(TreeItem.<T>expandedItemCountChangeEvent())) {
+                match = true;
+                break;
             }
-            
-            if (match) {
-                expandedItemCountDirty = true;
-                requestLayout();
-            }
+            eventType = eventType.getSuperType();
+        }
+
+        if (match) {
+            expandedItemCountDirty = true;
+            requestLayout();
         }
     };
     
@@ -1089,6 +1089,43 @@ public class TreeView<T> extends Control {
 
     /***************************************************************************
      *                                                                         *
+     * Accessibility handling                                                  *
+     *                                                                         *
+     **************************************************************************/
+
+    /** @treatAsPrivate */
+    @Override public Object accGetAttribute(Attribute attribute, Object... parameters) {
+        switch (attribute) {
+            case ROLE: return Role.TREE_VIEW;
+            case MULTIPLE_SELECTION: {
+                MultipleSelectionModel sm = getSelectionModel();
+                return sm != null && sm.getSelectionMode() == SelectionMode.MULTIPLE;
+            }
+            case ROW_COUNT: return getExpandedItemCount();
+            case ROW_AT_INDEX: //Skin
+            case SELECTED_ROWS: //Skin
+            case VERTICAL_SCROLLBAR: //Skin
+            case HORIZONTAL_SCROLLBAR: // Skin
+            default: return super.accGetAttribute(attribute, parameters);
+        }
+    }
+
+    /** @treatAsPrivate */
+    @Override public void accExecuteAction(Action action, Object... parameters) {
+        switch (action) {
+            case SCROLL_TO_INDEX: {
+                int index = (int) parameters[0];
+                scrollTo(index);
+                break;
+            }
+            default: super.accExecuteAction(action, parameters);
+        }
+    }
+
+
+
+    /***************************************************************************
+     *                                                                         *
      * Support Interfaces                                                      *
      *                                                                         *
      **************************************************************************/
@@ -1206,12 +1243,9 @@ public class TreeView<T> extends Control {
             }
         }
         
-        private ChangeListener<TreeItem<T>> rootPropertyListener = new ChangeListener<TreeItem<T>>() {
-            @Override public void changed(ObservableValue<? extends TreeItem<T>> observable, 
-                    TreeItem<T> oldValue, TreeItem<T> newValue) {
-                clearSelection();
-                updateTreeEventListener(oldValue, newValue);
-            }
+        private ChangeListener<TreeItem<T>> rootPropertyListener = (observable, oldValue, newValue) -> {
+            clearSelection();
+            updateTreeEventListener(oldValue, newValue);
         };
         
         private EventHandler<TreeModificationEvent<T>> treeItemListener = new EventHandler<TreeModificationEvent<T>>() {
@@ -1434,11 +1468,8 @@ public class TreeView<T> extends Control {
             updateTreeEventListener(null, treeView.getRoot());
         }
         
-        private final ChangeListener<TreeItem<T>> rootPropertyListener = new ChangeListener<TreeItem<T>>() {
-            @Override
-            public void changed(ObservableValue<? extends TreeItem<T>> observable, TreeItem<T> oldValue, TreeItem<T> newValue) {
-                updateTreeEventListener(oldValue, newValue);
-            }
+        private final ChangeListener<TreeItem<T>> rootPropertyListener = (observable, oldValue, newValue) -> {
+            updateTreeEventListener(oldValue, newValue);
         };
                 
         private final WeakChangeListener<TreeItem<T>> weakRootPropertyListener =
@@ -1502,10 +1533,8 @@ public class TreeView<T> extends Control {
                 if(shift != 0) {
                     final int newFocus = getFocusedIndex() + shift;
                     if (newFocus >= 0) {
-                        Platform.runLater(new Runnable() {
-                            @Override public void run() {
-                                focus(newFocus);
-                            }
+                        Platform.runLater(() -> {
+                            focus(newFocus);
                         });
                     }
                 } 
@@ -1533,22 +1562,6 @@ public class TreeView<T> extends Control {
             }
             
             super.focus(index);
-        }
-    }
-
-    /** @treatAsPrivate */
-    @Override
-    public Object accGetAttribute(Attribute attribute, Object... parameters) {
-        switch (attribute) {
-            case ROLE: return Role.TREE_VIEW;
-            case MULTIPLE_SELECTION: {
-                MultipleSelectionModel sm = getSelectionModel();
-                return sm != null && sm.getSelectionMode() == SelectionMode.MULTIPLE;
-            }
-            case ROW_COUNT: return getExpandedItemCount();
-            case ROW_AT_INDEX: //Skin
-            case SELECTED_ROWS: //Skin
-            default: return super.accGetAttribute(attribute, parameters);
         }
     }
 }

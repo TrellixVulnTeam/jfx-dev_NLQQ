@@ -32,7 +32,6 @@ import org.junit.After;
 import org.junit.Assume;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
@@ -57,8 +56,6 @@ public class MacAppStoreBundlerTest {
 
     @BeforeClass
     public static void prepareApp() throws IOException {
-        Assume.assumeTrue(false);
-
         // only run on mac
         Assume.assumeTrue(System.getProperty("os.name").toLowerCase().contains("os x"));
 
@@ -76,6 +73,9 @@ public class MacAppStoreBundlerTest {
             String commandOutput = baos.toString();
             Assume.assumeTrue(commandOutput.contains(signingKeyName));
             System.err.println("Valid certificate present");
+        } catch (Throwable t) {
+            System.err.println("Valid certificate not present, skipping test.");
+            Assume.assumeTrue(false);
         }
 
 
@@ -137,7 +137,6 @@ public class MacAppStoreBundlerTest {
      * See if smoke comes out
      */
     @Test
-    @Ignore
     public void smokeTest() throws IOException, ConfigException, UnsupportedPlatformException {
         AbstractBundler bundler = new MacAppStoreBundler();
 

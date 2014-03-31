@@ -122,13 +122,11 @@ public abstract class ComboBoxBase<T> extends Control {
         getStyleClass().add(DEFAULT_STYLE_CLASS);
 
         // Fix for RT-29885
-        getProperties().addListener(new MapChangeListener<Object, Object>() {
-            @Override public void onChanged(Change<?,?> change) {
-                if (change.wasAdded()) {
-                    if (change.getKey() == "FOCUSED") {
-                        setFocused((Boolean)change.getValueAdded());
-                        getProperties().remove("FOCUSED");
-                    }
+        getProperties().addListener((MapChangeListener<Object, Object>) change -> {
+            if (change.wasAdded()) {
+                if (change.getKey() == "FOCUSED") {
+                    setFocused((Boolean)change.getValueAdded());
+                    getProperties().remove("FOCUSED");
                 }
             }
         });
@@ -447,7 +445,8 @@ public abstract class ComboBoxBase<T> extends Control {
             setArmed(false);
         }
     }
-    
+
+
     /***************************************************************************
      *                                                                         *
      * Stylesheet Handling                                                     *
@@ -462,10 +461,16 @@ public abstract class ComboBoxBase<T> extends Control {
             PseudoClass.getPseudoClass("showing");
     private static final PseudoClass PSEUDO_CLASS_ARMED =
             PseudoClass.getPseudoClass("armed");
-    
+
+
+    /***************************************************************************
+     *                                                                         *
+     * Accessibility handling                                                  *
+     *                                                                         *
+     **************************************************************************/
+
     /** @treatAsPrivate */
-    @Override
-    public Object accGetAttribute(Attribute attribute, Object... parameters) {
+    @Override public Object accGetAttribute(Attribute attribute, Object... parameters) {
         switch (attribute) {
             case ROLE: return Role.COMBOBOX;
             case EXPANDED: return isShowing();
@@ -475,8 +480,7 @@ public abstract class ComboBoxBase<T> extends Control {
     }
 
     /** @treatAsPrivate */
-    @Override 
-    public void accExecuteAction(Action action, Object... parameters) {
+    @Override public void accExecuteAction(Action action, Object... parameters) {
         switch (action) {
             case EXPAND: show(); break;
             case COLLAPSE: hide(); break;

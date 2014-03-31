@@ -61,6 +61,7 @@ import javafx.css.StyleableProperty;
 import javafx.event.EventHandler;
 import javafx.event.EventType;
 import javafx.scene.Node;
+import javafx.scene.accessibility.Action;
 import javafx.scene.accessibility.Attribute;
 import javafx.scene.accessibility.Role;
 import javafx.scene.layout.Region;
@@ -530,10 +531,8 @@ public class TableView<S> extends Control {
 
         // watch for changes to the sort order list - and when it changes run
         // the sort method.
-        getSortOrder().addListener(new ListChangeListener<TableColumn<S,?>>() {
-            @Override public void onChanged(Change<? extends TableColumn<S,?>> c) {
-                doSort(TableUtil.SortEventType.SORT_ORDER_CHANGE, c);
-            }
+        getSortOrder().addListener((ListChangeListener<TableColumn<S, ?>>) c -> {
+            doSort(TableUtil.SortEventType.SORT_ORDER_CHANGE, c);
         });
 
         // We're watching for changes to the content width such
@@ -640,43 +639,33 @@ public class TableView<S> extends Control {
         }
     };
     
-    private final InvalidationListener columnVisibleObserver = new InvalidationListener() {
-        @Override public void invalidated(Observable valueModel) {
-            updateVisibleLeafColumns();
-        }
+    private final InvalidationListener columnVisibleObserver = valueModel -> {
+        updateVisibleLeafColumns();
     };
     
-    private final InvalidationListener columnSortableObserver = new InvalidationListener() {
-        @Override public void invalidated(Observable valueModel) {
-            Object col = ((Property<?>)valueModel).getBean();
-            if (! getSortOrder().contains(col)) return;
-            doSort(TableUtil.SortEventType.COLUMN_SORTABLE_CHANGE, col);
-        }
+    private final InvalidationListener columnSortableObserver = valueModel -> {
+        Object col = ((Property<?>)valueModel).getBean();
+        if (! getSortOrder().contains(col)) return;
+        doSort(TableUtil.SortEventType.COLUMN_SORTABLE_CHANGE, col);
     };
 
-    private final InvalidationListener columnSortTypeObserver = new InvalidationListener() {
-        @Override public void invalidated(Observable valueModel) {
-            Object col = ((Property<?>)valueModel).getBean();
-            if (! getSortOrder().contains(col)) return;
-            doSort(TableUtil.SortEventType.COLUMN_SORT_TYPE_CHANGE, col);
-        }
+    private final InvalidationListener columnSortTypeObserver = valueModel -> {
+        Object col = ((Property<?>)valueModel).getBean();
+        if (! getSortOrder().contains(col)) return;
+        doSort(TableUtil.SortEventType.COLUMN_SORT_TYPE_CHANGE, col);
     };
     
-    private final InvalidationListener columnComparatorObserver = new InvalidationListener() {
-        @Override public void invalidated(Observable valueModel) {
-            Object col = ((Property<?>)valueModel).getBean();
-            if (! getSortOrder().contains(col)) return;
-            doSort(TableUtil.SortEventType.COLUMN_COMPARATOR_CHANGE, col);
-        }
+    private final InvalidationListener columnComparatorObserver = valueModel -> {
+        Object col = ((Property<?>)valueModel).getBean();
+        if (! getSortOrder().contains(col)) return;
+        doSort(TableUtil.SortEventType.COLUMN_COMPARATOR_CHANGE, col);
     };
     
     /* proxy pseudo-class state change from selectionModel's cellSelectionEnabledProperty */
-    private final InvalidationListener cellSelectionModelInvalidationListener = new InvalidationListener() {
-        @Override public void invalidated(Observable o) {
-            final boolean isCellSelection = ((BooleanProperty)o).get();
-            pseudoClassStateChanged(PSEUDO_CLASS_CELL_SELECTION,  isCellSelection);
-            pseudoClassStateChanged(PSEUDO_CLASS_ROW_SELECTION,  !isCellSelection);
-        }
+    private final InvalidationListener cellSelectionModelInvalidationListener = o -> {
+        final boolean isCellSelection = ((BooleanProperty)o).get();
+        pseudoClassStateChanged(PSEUDO_CLASS_CELL_SELECTION,  isCellSelection);
+        pseudoClassStateChanged(PSEUDO_CLASS_ROW_SELECTION,  !isCellSelection);
     };
     
     
@@ -1591,7 +1580,62 @@ public class TableView<S> extends Control {
     public List<CssMetaData<? extends Styleable, ?>> getControlCssMetaData() {
         return getClassCssMetaData();
     }
-    
+
+
+
+    /***************************************************************************
+     *                                                                         *
+     * Accessibility handling                                                  *
+     *                                                                         *
+     **************************************************************************/
+
+    /** @treatAsPrivate */
+    @Override public Object accGetAttribute(Attribute attribute, Object... parameters) {
+        switch (attribute) {
+            case ROLE: return Role.TABLE_VIEW;
+            case COLUMN_COUNT: return getVisibleLeafColumns().size();
+            case ROW_COUNT: return getItems().size();
+            case SELECTED_CELLS: {
+                // TableViewSkin returns TableRows back to TableView.
+                // TableRowSkin returns TableCells back to TableRow.
+                ObservableList<TableRow<S>> rows = (ObservableList<TableRow<S>>)super.accGetAttribute(attribute, parameters);
+                List<Node> selection = new ArrayList<>();
+                for (TableRow<S> row : rows) {
+                    ObservableList<Node> cells = (ObservableList<Node>)row.accGetAttribute(attribute, parameters);
+                    if (cells != null) selection.addAll(cells);
+                }
+                return FXCollections.observableArrayList(selection);
+            }
+            case FOCUS_ITEM:
+            case CELL_AT_ROW_COLUMN: {
+                TableRow<S> row = (TableRow<S>)super.accGetAttribute(attribute, parameters);
+                return row != null ? row.accGetAttribute(attribute, parameters) : null;
+            }
+            case MULTIPLE_SELECTION: {
+                MultipleSelectionModel sm = getSelectionModel();
+                return sm != null && sm.getSelectionMode() == SelectionMode.MULTIPLE;
+            }
+            case COLUMN_AT_INDEX: //Skin
+            case COLUMN_INDEX: //Skin
+            case HEADER: //Skin
+            case VERTICAL_SCROLLBAR: //Skin
+            case HORIZONTAL_SCROLLBAR: // Skin
+            default: return super.accGetAttribute(attribute, parameters);
+        }
+    }
+
+    /** @treatAsPrivate */
+    @Override public void accExecuteAction(Action action, Object... parameters) {
+        switch (action) {
+            case SCROLL_TO_INDEX: {
+                int index = (int) parameters[0];
+                scrollTo(index);
+                break;
+            }
+            default: super.accExecuteAction(action, parameters);
+        }
+    }
+
 
 
     /***************************************************************************
@@ -1855,17 +1899,9 @@ public class TableView<S> extends Control {
         
         private int itemCount = 0;
 
-        private final MappingChange.Map<TablePosition<S,?>,S> cellToItemsMap = new MappingChange.Map<TablePosition<S,?>, S>() {
-            @Override public S map(TablePosition<S,?> f) {
-                return getModelItem(f.getRow());
-            }
-        };
+        private final MappingChange.Map<TablePosition<S,?>,S> cellToItemsMap = f -> getModelItem(f.getRow());
 
-        private final MappingChange.Map<TablePosition<S,?>,Integer> cellToIndicesMap = new MappingChange.Map<TablePosition<S,?>, Integer>() {
-            @Override public Integer map(TablePosition<S,?> f) {
-                return f.getRow();
-            }
-        };
+        private final MappingChange.Map<TablePosition<S,?>,Integer> cellToIndicesMap = f -> f.getRow();
 
         /***********************************************************************
          *                                                                     *
@@ -1879,18 +1915,13 @@ public class TableView<S> extends Control {
 
             updateItemCount();
             
-            cellSelectionEnabledProperty().addListener(new InvalidationListener() {
-                @Override
-                public void invalidated(Observable o) {
-                    isCellSelectionEnabled();
-                    clearSelection();
-                }
+            cellSelectionEnabledProperty().addListener(o -> {
+                isCellSelectionEnabled();
+                clearSelection();
             });
 
-            selectedCellsMap = new SelectedCellsMap<>(new ListChangeListener<TablePosition<S,?>>() {
-                @Override public void onChanged(final Change<? extends TablePosition<S,?>> c) {
-                    handleSelectedCellsListChangeEvent(c);
-                }
+            selectedCellsMap = new SelectedCellsMap<>(c -> {
+                handleSelectedCellsListChangeEvent(c);
             });
 
             selectedItems = new ReadOnlyUnbackedObservableList<S>() {
@@ -2987,40 +3018,6 @@ public class TableView<S> extends Control {
             int columnIndex = tableView.getVisibleLeafIndex(column);
             int newColumnIndex = columnIndex + offset;
             return tableView.getVisibleLeafColumn(newColumnIndex);
-        }
-    }
-
-    /** @treatAsPrivate */
-    @Override
-    public Object accGetAttribute(Attribute attribute, Object... parameters) {
-        switch (attribute) {
-            case ROLE: return Role.TABLE_VIEW;
-            case COLUMN_COUNT: return getVisibleLeafColumns().size();
-            case ROW_COUNT: return getItems().size();
-            case SELECTED_CELLS: {
-                // TableViewSkin returns TableRows back to TableView.
-                // TableRowSkin returns TableCells back to TableRow.
-                ObservableList<TableRow<S>> rows = (ObservableList<TableRow<S>>)super.accGetAttribute(attribute, parameters);
-                List<Node> selection = new ArrayList<>();
-                for (TableRow<S> row : rows) {
-                    ObservableList<Node> cells = (ObservableList<Node>)row.accGetAttribute(attribute, parameters);
-                    if (cells != null) selection.addAll(cells);
-                }
-                return FXCollections.observableArrayList(selection);
-            }
-            case FOCUS_ITEM:
-            case CELL_AT_ROWCOLUMN: {
-                TableRow<S> row = (TableRow<S>)super.accGetAttribute(attribute, parameters);
-                return row != null ? row.accGetAttribute(attribute, parameters) : null;
-            }
-            case MULTIPLE_SELECTION: {
-                MultipleSelectionModel sm = getSelectionModel();
-                return sm != null && sm.getSelectionMode() == SelectionMode.MULTIPLE;
-            }
-            case COLUMN_AT_INDEX: //Skin
-            case COLUMN_INDEX: //Skin
-            case HEADER: //Skin
-            default: return super.accGetAttribute(attribute, parameters);
         }
     }
 }

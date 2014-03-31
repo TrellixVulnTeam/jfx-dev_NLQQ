@@ -125,13 +125,11 @@ public abstract class TextInputControl extends Control {
 
         // Add a listener so that whenever the Content is changed, we notify
         // listeners of the text property that it is invalid.
-        content.addListener(new InvalidationListener() {
-            @Override public void invalidated(Observable observable) {
-                if (content.length() > 0) {
-                    text.textIsNull = false;
-                }
-                text.invalidate();
+        content.addListener(observable -> {
+            if (content.length() > 0) {
+                text.textIsNull = false;
             }
+            text.invalidate();
         });
 
         // Bind the length to be based on the length of the text property
@@ -1208,9 +1206,15 @@ public abstract class TextInputControl extends Control {
         return getClassCssMetaData();
     }
 
+
+    /***************************************************************************
+     *                                                                         *
+     * Accessibility handling                                                  *
+     *                                                                         *
+     **************************************************************************/
+
     /** @treatAsPrivate */
-    @Override
-    public Object accGetAttribute(Attribute attribute, Object... parameters) {
+    @Override public Object accGetAttribute(Attribute attribute, Object... parameters) {
         switch (attribute) {
             case TITLE: {
                 String text = getText();
@@ -1224,8 +1228,7 @@ public abstract class TextInputControl extends Control {
     }
 
     /** @treatAsPrivate */
-    @Override 
-    public void accExecuteAction(Action action, Object... parameters) {
+    @Override public void accExecuteAction(Action action, Object... parameters) {
         switch (action) {
             case SET_TITLE: {
                 String value = (String) parameters[0];

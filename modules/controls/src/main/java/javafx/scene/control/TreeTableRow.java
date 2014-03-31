@@ -25,9 +25,7 @@
 
 package javafx.scene.control;
 
-import com.sun.javafx.scene.control.skin.VirtualContainerBase;
 import com.sun.javafx.scene.control.skin.VirtualFlow;
-import javafx.collections.FXCollections;
 import javafx.css.PseudoClass;
 import com.sun.javafx.scene.control.skin.TreeTableRowSkin;
 import java.lang.ref.WeakReference;
@@ -96,22 +94,16 @@ public class TreeTableRow<T> extends IndexedCell<T> {
      *                                                                         *
      **************************************************************************/
     
-    private final ListChangeListener<Integer> selectedListener = new ListChangeListener<Integer>() {
-        @Override public void onChanged(ListChangeListener.Change<? extends Integer> c) {
-            updateSelection();
-        }
+    private final ListChangeListener<Integer> selectedListener = c -> {
+        updateSelection();
     };
 
-    private final InvalidationListener focusedListener = new InvalidationListener() {
-        @Override public void invalidated(Observable valueModel) {
-            updateFocus();
-        }
+    private final InvalidationListener focusedListener = valueModel -> {
+        updateFocus();
     };
 
-    private final InvalidationListener editingListener = new InvalidationListener() {
-        @Override public void invalidated(Observable valueModel) {
-            updateEditing();
-        }
+    private final InvalidationListener editingListener = valueModel -> {
+        updateEditing();
     };
     
     private final InvalidationListener leafListener = new InvalidationListener() {
@@ -125,12 +117,10 @@ public class TreeTableRow<T> extends IndexedCell<T> {
         }
     };
     
-    private final InvalidationListener treeItemExpandedInvalidationListener = new InvalidationListener() {
-        @Override public void invalidated(Observable o) {
-            final boolean expanded = ((BooleanProperty)o).get();
-            pseudoClassStateChanged(EXPANDED_PSEUDOCLASS_STATE,   expanded);
-            pseudoClassStateChanged(COLLAPSED_PSEUDOCLASS_STATE, !expanded);
-        }
+    private final InvalidationListener treeItemExpandedInvalidationListener = o -> {
+        final boolean expanded = ((BooleanProperty)o).get();
+        pseudoClassStateChanged(EXPANDED_PSEUDOCLASS_STATE,   expanded);
+        pseudoClassStateChanged(COLLAPSED_PSEUDOCLASS_STATE, !expanded);
     };
     
     private final WeakListChangeListener<Integer> weakSelectedListener = 
@@ -285,10 +275,12 @@ public class TreeTableRow<T> extends IndexedCell<T> {
      *                                                                         *
      * Public API                                                              *
      *                                                                         *
-     **************************************************************************/
+     *************************************************************************
+     * @param oldIndex
+     * @param newIndex*/
 
     
-    @Override void indexChanged() {
+    @Override void indexChanged(int oldIndex, int newIndex) {
         index = getIndex();
 
         // when the cell index changes, this may result in the cell
@@ -527,9 +519,15 @@ public class TreeTableRow<T> extends IndexedCell<T> {
         return new TreeTableRowSkin<T>(this);
     }
 
+
+    /***************************************************************************
+     *                                                                         *
+     * Accessibility handling                                                  *
+     *                                                                         *
+     **************************************************************************/
+
     /** @treatAsPrivate */
-    @Override
-    public Object accGetAttribute(Attribute attribute, Object... parameters) {
+    @Override public Object accGetAttribute(Attribute attribute, Object... parameters) {
         TreeItem<T> treeItem = getTreeItem();
         TreeTableView<T> treeTableView = getTreeTableView();
 
@@ -572,8 +570,7 @@ public class TreeTableRow<T> extends IndexedCell<T> {
     }
 
     /** @treatAsPrivate */
-    @Override
-    public void accExecuteAction(Action action, Object... parameters) {
+    @Override public void accExecuteAction(Action action, Object... parameters) {
         final TreeTableView<T> treeTableView = getTreeTableView();
         final TreeTableView.TreeTableViewSelectionModel<T> sm = treeTableView == null ? null : treeTableView.getSelectionModel();
 

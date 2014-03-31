@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -116,57 +116,43 @@ public class TreeTableCell<S,T> extends IndexedCell<T> {
      * be mutated, we create this observer here, and add/remove it from the
      * storeTableView method.
      */
-    private ListChangeListener<TreeTablePosition<S,?>> selectedListener = new ListChangeListener<TreeTablePosition<S,?>>() {
-        @Override public void onChanged(Change<? extends TreeTablePosition<S,?>> c) {
-            updateSelection();
-        }
+    private ListChangeListener<TreeTablePosition<S,?>> selectedListener = c -> {
+        updateSelection();
     };
 
     // same as above, but for focus
-    private final InvalidationListener focusedListener = new InvalidationListener() {
-        @Override public void invalidated(@SuppressWarnings("unused") Observable value) {
-            updateFocus();
-        }
+    private final InvalidationListener focusedListener = value -> {
+        updateFocus();
     };
 
     // same as above, but for for changes to the properties on TableRow
-    private final InvalidationListener tableRowUpdateObserver = new InvalidationListener() {
-        @Override public void invalidated(@SuppressWarnings("unused") Observable value) {
-            itemDirty = true;
-            requestLayout();
-        }
+    private final InvalidationListener tableRowUpdateObserver = value -> {
+        itemDirty = true;
+        requestLayout();
     };
     
-    private final InvalidationListener editingListener = new InvalidationListener() {
-        @Override public void invalidated(@SuppressWarnings("unused") Observable value) {
-            updateEditing();
-        }
+    private final InvalidationListener editingListener = value -> {
+        updateEditing();
     };
     
-    private ListChangeListener<TreeTableColumn<S,?>> visibleLeafColumnsListener = new ListChangeListener<TreeTableColumn<S,?>>() {
-        @Override public void onChanged(Change<? extends TreeTableColumn<S,?>> c) {
-            updateColumnIndex();
-        }
+    private ListChangeListener<TreeTableColumn<S,?>> visibleLeafColumnsListener = c -> {
+        updateColumnIndex();
     };
     
-    private ListChangeListener<String> columnStyleClassListener = new ListChangeListener<String>() {
-        @Override public void onChanged(Change<? extends String> c) {
-            while (c.next()) {
-                if (c.wasRemoved()) {
-                    getStyleClass().removeAll(c.getRemoved());
-                }
-                
-                if (c.wasAdded()) {
-                    getStyleClass().addAll(c.getAddedSubList());
-                }
+    private ListChangeListener<String> columnStyleClassListener = c -> {
+        while (c.next()) {
+            if (c.wasRemoved()) {
+                getStyleClass().removeAll(c.getRemoved());
+            }
+
+            if (c.wasAdded()) {
+                getStyleClass().addAll(c.getAddedSubList());
             }
         }
     };
 
-    private final InvalidationListener rootPropertyListener = new InvalidationListener() {
-        @Override public void invalidated(Observable observable) {
-            updateItem();
-        }
+    private final InvalidationListener rootPropertyListener = observable -> {
+        updateItem(-1);
     };
     
     private final WeakListChangeListener<TreeTablePosition<S,?>> weakSelectedListener = 
@@ -248,7 +234,7 @@ public class TreeTableCell<S,T> extends IndexedCell<T> {
                         }
                     }
 
-                    TreeTableView newTreeTableView = get();
+                    TreeTableView<S> newTreeTableView = get();
                     if (newTreeTableView != null) {
                         sm = newTreeTableView.getSelectionModel();
                         if (sm != null) {
@@ -309,7 +295,7 @@ public class TreeTableCell<S,T> extends IndexedCell<T> {
         // updateItem normally, when it comes to unit tests we can't have the
         // item change in all circumstances.
         if (! lockItemOnEdit) {
-            updateItem();
+            updateItem(-1);
         }
 
         // it makes sense to get the cell into its editing state before firing
@@ -429,21 +415,11 @@ public class TreeTableCell<S,T> extends IndexedCell<T> {
      *                                                                         *
      **************************************************************************/
 
-    private int index = -1;
+    /** {@inheritDoc} */
+    @Override void indexChanged(int oldIndex, int newIndex) {
+        super.indexChanged(oldIndex, newIndex);
 
-    @Override void indexChanged() {
-        super.indexChanged();
-        // Ideally we would just use the following two lines of code, rather
-        // than the updateItem() call beneath, but if we do this we end up with
-        // RT-22428 where all the columns are collapsed.
-        // itemDirty = true;
-        // requestLayout();
-
-        final int oldIndex = index;
-        super.indexChanged();
-        index = getIndex();
-
-        if (isEditing() && index == oldIndex) {
+        if (isEditing() && newIndex == oldIndex) {
             // no-op
             // Fix for RT-31165 - if we (needlessly) update the index whilst the
             // cell is being edited it will no longer be in an editing state.
@@ -452,7 +428,12 @@ public class TreeTableCell<S,T> extends IndexedCell<T> {
             // will not change to the editing state as a layout of VirtualFlow
             // is immediately invoked, which forces all cells to be updated.
         } else {
-            updateItem();
+            // Ideally we would just use the following two lines of code, rather
+            // than the updateItem() call beneath, but if we do this we end up with
+            // RT-22428 where all the columns are collapsed.
+            // itemDirty = true;
+            // requestLayout();
+            updateItem(oldIndex);
             updateSelection();
             updateFocus();
         }
@@ -518,7 +499,7 @@ public class TreeTableCell<S,T> extends IndexedCell<T> {
         final TreeTableView<S> tv = getTreeTableView();
         if (getIndex() == -1 || tv == null) return;
 
-        TreeTableView.TreeTableViewFocusModel fm = tv.getFocusModel();
+        TreeTableView.TreeTableViewFocusModel<S> fm = tv.getFocusModel();
         if (fm == null) return;
 
         boolean isFocusedNow = fm != null &&
@@ -577,7 +558,7 @@ public class TreeTableCell<S,T> extends IndexedCell<T> {
      * changed. You'll note that this is a private function - it is only called
      * when one of the triggers above call it.
      */
-    private void updateItem() {
+    private void updateItem(int oldIndex) {
         if (currentObservableValue != null) {
             currentObservableValue.removeListener(weaktableRowUpdateObserver);
         }
@@ -622,11 +603,13 @@ public class TreeTableCell<S,T> extends IndexedCell<T> {
             
             final T newValue = currentObservableValue == null ? null : currentObservableValue.getValue();
 
-            // There used to be conditional code here to prevent updateItem from
-            // being called when the value didn't change, but that led us to
-            // issues such as RT-33108, where the value didn't change but the item
-            // we needed to be listening to did. Without calling updateItem we
-            // were breaking things, so once again the conditionals are gone.
+            // RT-34566 - if the index didn't change, then avoid calling updateItem
+            // unless the item has changed.
+            if (oldIndex == index) {
+                if (oldValue != null ? oldValue.equals(newValue) : newValue == null) {
+                    return;
+                }
+            }
             updateItem(newValue, false);
         }
         
@@ -640,7 +623,7 @@ public class TreeTableCell<S,T> extends IndexedCell<T> {
 
     @Override protected void layoutChildren() {
         if (itemDirty) {
-            updateItem();
+            updateItem(-1);
             itemDirty = false;
         }
         super.layoutChildren();
@@ -718,9 +701,15 @@ public class TreeTableCell<S,T> extends IndexedCell<T> {
         return new TreeTableCellSkin<S,T>(this);
     }
 
+
+    /***************************************************************************
+     *                                                                         *
+     * Accessibility handling                                                  *
+     *                                                                         *
+     **************************************************************************/
+
     /** @treatAsPrivate */
-    @Override
-    public Object accGetAttribute(Attribute attribute, Object... parameters) {
+    @Override public Object accGetAttribute(Attribute attribute, Object... parameters) {
         switch (attribute) {
             case ROLE: return Role.TREE_TABLE_CELL;
             case TITLE: return getText();
@@ -732,8 +721,7 @@ public class TreeTableCell<S,T> extends IndexedCell<T> {
     }
 
     /** @treatAsPrivate */
-    @Override
-    public void accExecuteAction(Action action, Object... parameters) {
+    @Override public void accExecuteAction(Action action, Object... parameters) {
         final TreeTableView<S> treeTableView = getTreeTableView();
         final TreeTableView.TreeTableViewSelectionModel<S> sm = treeTableView == null ? null : treeTableView.getSelectionModel();
 
