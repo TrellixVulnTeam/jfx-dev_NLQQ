@@ -111,7 +111,6 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
             I18N.getString("param.signing-key-app.description"),
             "mac.signing-key-app",
             String.class,
-            null,
             params -> {
                 String key = "3rd Party Mac Developer Application: " + SIGNING_KEY_USER.fetchFrom(params);
                 try {
@@ -121,7 +120,6 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
                     return null;
                 }
             },
-            false,
             (s, p) -> s);
 
     public static final BundlerParamInfo<String> MAC_APP_STORE_PKG_SIGNING_KEY = new StandardBundlerParam<>(
@@ -129,7 +127,6 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
             I18N.getString("param.signing-key-pkg.description"),
             "mac.signing-key-pkg",
             String.class,
-            null,
             params -> {
                 String key = "3rd Party Mac Developer Installer: " + SIGNING_KEY_USER.fetchFrom(params);
                 try {
@@ -139,7 +136,6 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
                     return null;
                 }
             },
-            false,
             (s, p) -> s);
 
     public static final StandardBundlerParam<File> MAC_APP_STORE_ENTITLEMENTS  = new StandardBundlerParam<>(
@@ -147,9 +143,7 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
             I18N.getString("param.mac-app-store-entitlements.description"),
             "mac.app-store-entitlements",
             File.class,
-            null,
             params -> null,
-            false,
             (s, p) -> new File(s));
 
     public MacAppStoreBundler() {
@@ -311,10 +305,21 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
             //we are not interested in return code, only possible exception
             APP_BUNDLER.fetchFrom(params).doValidate(params);
 
-            // more stringent app store validations
+            // make sure we have settings for signatures
+            if (MAC_APP_STORE_APP_SIGNING_KEY.fetchFrom(params) == null) {
+                throw new ConfigException(
+                        I18N.getString("error.no-app-signing-key"),
+                        I18N.getString("error.no-app-signing-key.advice"));
+            }
+            if (MAC_APP_STORE_PKG_SIGNING_KEY.fetchFrom(params) == null) {
+                throw new ConfigException(
+                        I18N.getString("error.no-pkg-signing-key"),
+                        I18N.getString("error.no-pkg-signing-key.advice"));
+            }
+
+            // things we could check...
             // check the icons, make sure it has hidpi icons
             // check the category, make sure it fits in the list apple has provided
-            // make sure we have settings for signatures
             // validate bundle identifier is reverse dns
             //  check for \a+\.\a+\..
 

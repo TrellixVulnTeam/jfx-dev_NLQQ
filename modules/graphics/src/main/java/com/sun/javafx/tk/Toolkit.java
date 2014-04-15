@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -135,18 +135,12 @@ public abstract class Toolkit {
             return TOOLKIT;
         }
 
-        final boolean verbose = AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
-            public Boolean run() {
-                return Boolean.getBoolean("javafx.verbose");
-            }
-        });
-        AccessController.doPrivileged(new PrivilegedAction<Object>() {
-            public Object run() {
-                // Get the javafx.version and javafx.runtime.version from a preconstructed
-                // java class, VersionInfo, created at build time.
-                VersionInfo.setupSystemProperties();
-                return null;
-            }
+        final boolean verbose = AccessController.doPrivileged((PrivilegedAction<Boolean>) () -> Boolean.getBoolean("javafx.verbose"));
+        AccessController.doPrivileged((PrivilegedAction<Object>) () -> {
+            // Get the javafx.version and javafx.runtime.version from a preconstructed
+            // java class, VersionInfo, created at build time.
+            VersionInfo.setupSystemProperties();
+            return null;
         });
 
         boolean userSpecifiedToolkit = true;
@@ -274,8 +268,7 @@ public abstract class Toolkit {
 
     public abstract boolean isNestedLoopRunning();
 
-    public abstract TKStage createTKStage(Window peerWindow, StageStyle stageStyle, boolean primary,
-            Modality modality, TKStage owner, boolean rtl, AccessControlContext acc);
+    public abstract TKStage createTKStage(Window peerWindow, boolean securityDialog, StageStyle stageStyle, boolean primary, Modality modality, TKStage owner, boolean rtl, AccessControlContext acc);
 
     public abstract TKStage createTKPopupStage(Window peerWindow, StageStyle popupStyle, TKStage owner, AccessControlContext acc);
     public abstract TKStage createTKEmbeddedStage(HostInterface host, AccessControlContext acc);
@@ -317,11 +310,9 @@ public abstract class Toolkit {
             throw new IllegalStateException("Invalid AccessControlContext");
         }
 
-        AccessController.doPrivileged(new PrivilegedAction<Void>() {
-            @Override public Void run() {
-                listener.pulse();
-                return null;
-            }
+        AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
+            listener.pulse();
+            return null;
         }, acc);
     }
 
@@ -453,11 +444,9 @@ public abstract class Toolkit {
                 throw new IllegalStateException("Invalid AccessControlContext");
             }
 
-            AccessController.doPrivileged(new PrivilegedAction<Void>() {
-                @Override public Void run() {
-                    listener.changedTopLevelWindows(windows);
-                    return null;
-                }
+            AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
+                listener.changedTopLevelWindows(windows);
+                return null;
             }, acc);
         }
     }

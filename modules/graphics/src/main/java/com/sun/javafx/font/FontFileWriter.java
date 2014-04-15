@@ -84,8 +84,7 @@ class FontFileWriter implements FontConstants {
         pos = 0;
         writtenBytes = 0;
         file = AccessController.doPrivileged(
-            new PrivilegedExceptionAction<File>() {
-                public File run() throws IOException {
+                (PrivilegedExceptionAction<File>) () -> {
                     try {
                         return Files.createTempFile("+JXF", ".tmp").toFile();
                     } catch (IOException e) {
@@ -93,17 +92,12 @@ class FontFileWriter implements FontConstants {
                         throw new IOException("Unable to create temporary file");
                     }
                 }
-            }
         );
         if (tracker != null) {
             tracker.add(file);
         }
         raFile = AccessController.doPrivileged(
-            new PrivilegedExceptionAction<RandomAccessFile>() {
-                public RandomAccessFile run() throws IOException {
-                    return new RandomAccessFile(file, "rw");
-                }
-            }
+                (PrivilegedExceptionAction<RandomAccessFile>) () -> new RandomAccessFile(file, "rw")
         );
         if (tracker != null) {
             tracker.set(file, raFile);
@@ -140,12 +134,10 @@ class FontFileWriter implements FontConstants {
             }
             try {
                 AccessController.doPrivileged(
-                    new PrivilegedExceptionAction<Void>() {
-                        public Void run() {
+                        (PrivilegedExceptionAction<Void>) () -> {
                             file.delete();
                             return null;
                         }
-                    }
                 );
                 if (PrismFontFactory.debugFonts) {
                     System.err.println("Temp file delete: " + file.getPath());
@@ -163,10 +155,10 @@ class FontFileWriter implements FontConstants {
 
     private void checkTracker(int size) throws IOException {
         if (tracker != null) {
-            if (pos + size > FontTracker.MAX_FILE_SIZE) {
+            if (size < 0 || pos > FontTracker.MAX_FILE_SIZE - size) {
                 throw new IOException("File too big.");
             }
-            if (pos + tracker.getNumBytes() > FontTracker.MAX_TOTAL_BYTES) {
+            if (tracker.getNumBytes() > FontTracker.MAX_TOTAL_BYTES - size) {
                 throw new IOException("Total files too big.");
             }
         }
@@ -354,17 +346,14 @@ class FontFileWriter implements FontConstants {
                 if (t == null) {
                     // Add a shutdown hook to remove the temp file.
                     java.security.AccessController.doPrivileged(
-                        new java.security.PrivilegedAction() {
-                            public Object run() {
-                                t = new Thread(new Runnable() {
-                                        public void run() {
-                                            runHooks();
-                                        }
-                                    });
+                            (java.security.PrivilegedAction) () -> {
+                                t = new Thread(() -> {
+                                    runHooks();
+                                });
                                 Runtime.getRuntime().addShutdownHook(t);
                                 return null;
                             }
-                        });
+                    );
                 }
             }
 

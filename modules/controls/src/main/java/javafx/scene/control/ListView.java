@@ -30,6 +30,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
+import javafx.beans.InvalidationListener;
+import javafx.beans.Observable;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
@@ -44,6 +46,7 @@ import javafx.beans.value.WeakChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ListChangeListener.Change;
+import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableList;
 import javafx.css.StyleableDoubleProperty;
 import javafx.event.Event;
@@ -319,6 +322,25 @@ public class ListView<T> extends Control {
 
         // ...edit commit handler
         setOnEditCommit(DEFAULT_EDIT_COMMIT_HANDLER);
+
+        // Fix for RT-35679
+        focusedProperty().addListener(focusedListener);
+
+        // Fix for RT-36651, which was introduced by RT-35679 (above) and resolved
+        // by having special-case code to remove the listener when requested.
+        // This is done by ComboBoxListViewSkin, so that selection is not done
+        // when a ComboBox is shown.
+        getProperties().addListener((MapChangeListener<Object, Object>) change -> {
+            if (change.wasAdded() && "selectOnFocusGain".equals(change.getKey())) {
+                Boolean selectOnFocusGain = (Boolean) change.getValueAdded();
+                if (selectOnFocusGain == null) return;
+                if (selectOnFocusGain) {
+                    focusedProperty().addListener(focusedListener);
+                } else {
+                    focusedProperty().removeListener(focusedListener);
+                }
+            }
+        });
     }
     
     
@@ -334,6 +356,20 @@ public class ListView<T> extends Control {
         List<T> list = getItems();
         if (index < 0 || index >= list.size()) return;
         list.set(index, t.getNewValue());
+    };
+
+    private InvalidationListener focusedListener = observable -> {
+        // RT-25679 - we select the first item in the control if there is no
+        // current selection or focus on any other cell
+        List<T> items = getItems();
+        MultipleSelectionModel<T> sm = getSelectionModel();
+        FocusModel<T> fm = getFocusModel();
+
+        if (items != null && items.size() > 0 &&
+            sm != null && sm.isEmpty() &&
+            fm != null && fm.getFocusedIndex() == -1) {
+                sm.select(0);
+        }
     };
     
     

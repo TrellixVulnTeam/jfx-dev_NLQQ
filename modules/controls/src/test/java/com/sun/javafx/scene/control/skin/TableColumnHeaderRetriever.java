@@ -24,6 +24,7 @@
  */
 package com.sun.javafx.scene.control.skin;
 
+import com.sun.javafx.scene.control.infrastructure.StageLoader;
 import com.sun.javafx.scene.control.infrastructure.VirtualFlowTestUtils;
 import javafx.scene.control.TableColumn;
 
@@ -37,5 +38,9 @@ public class TableColumnHeaderRetriever {
     public static void moveColumn(TableColumn col, int newPos) {
         TableColumnHeader colHeader = VirtualFlowTestUtils.getTableColumnHeader(col.getTableView(), col);
         colHeader.moveColumn(col, newPos);
+    }
+
+    public static int getSortPos(TableColumnHeader header) {
+        return header.sortPos;
     }
 }
