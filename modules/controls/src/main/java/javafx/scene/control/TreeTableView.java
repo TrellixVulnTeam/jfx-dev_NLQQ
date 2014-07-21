@@ -1906,7 +1906,6 @@ public class TreeTableView<S> extends Control {
     @Override
     public Object queryAccessibleAttribute(AccessibleAttribute attribute, Object... parameters) {
         switch (attribute) {
-            case TREE_ITEM_COUNT:
             case ROW_COUNT: return getExpandedItemCount();
             case COLUMN_COUNT: return getVisibleLeafColumns().size();
 
@@ -1938,7 +1937,6 @@ public class TreeTableView<S> extends Control {
                 TreeTableViewSelectionModel<S> sm = getSelectionModel();
                 return sm != null && sm.getSelectionMode() == SelectionMode.MULTIPLE;
             }
-            case COLUMN_INDEX: //Skin
             case HEADER: //Skin
             case ROW_AT_INDEX: //Skin
             case VERTICAL_SCROLLBAR: //Skin
@@ -2918,9 +2916,6 @@ public class TreeTableView<S> extends Control {
         private void updateSelectedIndex(int row) {
             setSelectedIndex(row);
             setSelectedItem(getModelItem(row));
-
-            /* Does this get all the change events ? */
-            getTreeTableView().notifyAccessibleAttributeChanged(AccessibleAttribute.SELECTED_CELLS);
         }
         
         @Override public void focus(int row) {
@@ -2935,6 +2930,7 @@ public class TreeTableView<S> extends Control {
             if (getTreeTableView().getFocusModel() == null) return;
 
             getTreeTableView().getFocusModel().focus(pos.getRow(), pos.getTableColumn());
+            getTreeTableView().notifyAccessibleAttributeChanged(AccessibleAttribute.SELECTED_CELLS);
         }
 
         @Override public int getFocusedIndex() {
