@@ -792,23 +792,18 @@ public class TableCell<S,T> extends IndexedCell<T> {
 
     @Override
     public void executeAccessibleAction(AccessibleAction action, Object... parameters) {
-        final TableView<S> tableView = getTableView();
-        final TableSelectionModel<S> sm = tableView == null ? null : tableView.getSelectionModel();
-
         switch (action) {
-            case SELECT: {
-                if (sm != null) sm.clearAndSelect(getIndex(), getTableColumn());
+            case REQUEST_FOCUS: {
+                TableView<S> tableView = getTableView();
+                if (tableView != null) {
+                    TableViewFocusModel<S> fm = tableView.getFocusModel();
+                    if (fm != null) {
+                        fm.focus(getIndex(), getTableColumn());
+                    }
+                }
                 break;
             }
-            case ADD_TO_SELECTION: {
-                if (sm != null) sm.select(getIndex(), getTableColumn());
-                break;
-            }
-            case REMOVE_FROM_SELECTION: {
-                if (sm != null) sm.clearSelection(getIndex(), getTableColumn());
-                break;
-            }
-            default: super.executeAccessibleAction(action);
+            default: super.executeAccessibleAction(action, parameters);
         }
     }
 }

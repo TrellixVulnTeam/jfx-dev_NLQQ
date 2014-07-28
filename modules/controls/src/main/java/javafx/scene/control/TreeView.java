@@ -1119,10 +1119,6 @@ public class TreeView<T> extends Control {
                 return sm != null && sm.getSelectionMode() == SelectionMode.MULTIPLE;
             }
             case ROW_COUNT: return getExpandedItemCount();
-            case ROW_AT_INDEX: //Skin
-            case SELECTED_ROWS: //Skin
-            case VERTICAL_SCROLLBAR: //Skin
-            case HORIZONTAL_SCROLLBAR: // Skin
             default: return super.queryAccessibleAttribute(attribute, parameters);
         }
     }
@@ -1433,7 +1429,7 @@ public class TreeView<T> extends Control {
             }
 
             // FIXME this is not the correct location for fire selection events (and does not take into account multiple selection)
-            treeView.notifyAccessibleAttributeChanged(AccessibleAttribute.SELECTED_ROWS);
+            treeView.notifyAccessibleAttributeChanged(AccessibleAttribute.FOCUS_ITEM);
         }
 
         /** {@inheritDoc} */

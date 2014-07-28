@@ -33,12 +33,6 @@ package javafx.scene;
 public enum AccessibleAction {
 
     /**
-     * Selects the node whilst retaining all other selection in the container
-     * (assuming that the container supports multiple selection).
-     */
-    ADD_TO_SELECTION,
-
-    /**
      * Decrements the node (if it support BLOCK_DECREMENT) by its larger block decrement
      * value. A smaller decrement can be performed by using {@link #DECREMENT}.
      */
@@ -74,22 +68,31 @@ public enum AccessibleAction {
      */
     MOVE,
 
-    /**
-     * Deselects the node whilst retaining all other selection in the container.
-     */
-    REMOVE_FROM_SELECTION,
+    REQUEST_FOCUS,
 
     /**
-     * Requests that the given integer index is shown, if possible, by the
-     * container (e.g. ListView).
-     * Parameter: Integer
+     * Requests the view to show an item, scrolling if required.
+     * Parameter: Node
      */
-    SCROLL_TO_INDEX,
+    SHOW_ITEM,
 
     /**
-     * Selects the node, clearing out all other selection in the container.
+     * Requests the view to show the given text range, scrolling if required.
+     * Parameter: Integer (start offset), Integer (end offset)
      */
-    SELECT,
+    SHOW_TEXT_RANGE,
+
+    /**
+     * Sets the selected items.
+     * Parameter: ObservableList&lt;Node&gt;
+     */
+    SET_SELECTED_ITEMS,
+
+    /**
+     * Sets the text selection.
+     * Parameter: Integer (start offset), Integer (end offset)
+     */
+    SET_TEXT_SELECTION,
 
     /**
      * Sets the tile for a node.

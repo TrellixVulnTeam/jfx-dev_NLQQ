@@ -578,7 +578,7 @@ class WinTextRangeProvider {
     }
 
     void Select() {
-        accessible.executeAction(AccessibleAction.SELECT, start, end);
+        accessible.executeAction(AccessibleAction.SET_TEXT_SELECTION, start, end);
     }
 
     void AddToSelection() {
@@ -592,7 +592,7 @@ class WinTextRangeProvider {
     }
 
     void ScrollIntoView(boolean alignToTop) {
-        accessible.executeAction(AccessibleAction.SCROLL_TO_INDEX, start, end);
+        accessible.executeAction(AccessibleAction.SHOW_TEXT_RANGE, start, end);
     }
 
     long[] GetChildren() {

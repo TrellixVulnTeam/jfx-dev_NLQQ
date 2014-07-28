@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Function;
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.BoundingBox;
 import javafx.geometry.Bounds;
@@ -150,10 +151,10 @@ final class MacAccessible extends Accessible {
         NSAccessibilityColumnsAttribute(null, null), //virtual only
         NSAccessibilityRowsAttribute(null, null), //virtual only
         NSAccessibilityHeaderAttribute(HEADER, MacVariant::createNSObject),
-        NSAccessibilitySelectedRowsAttribute(SELECTED_ROWS, MacVariant::createNSArray),
+        NSAccessibilitySelectedRowsAttribute(SELECTED_ITEMS, MacVariant::createNSArray),
         NSAccessibilityRowCountAttribute(ROW_COUNT, MacVariant::createNSNumberForInt),
         NSAccessibilityColumnCountAttribute(COLUMN_COUNT, MacVariant::createNSNumberForInt),
-        NSAccessibilitySelectedCellsAttribute(SELECTED_CELLS, MacVariant::createNSArray),
+        NSAccessibilitySelectedCellsAttribute(SELECTED_ITEMS, MacVariant::createNSArray),
         NSAccessibilityRowIndexRangeAttribute(ROW_INDEX, MacVariant::createNSValueForRange),
         NSAccessibilityColumnIndexRangeAttribute(COLUMN_INDEX, MacVariant::createNSValueForRange),
 
@@ -207,6 +208,16 @@ final class MacAccessible extends Accessible {
             },
             new MacAction[] {MacAction.NSAccessibilityPressAction},
             null
+        ),
+        NSAccessibilityIncrementorRole(AccessibleRole.SPINNER,
+            new MacAttribute[] {
+                MacAttribute.NSAccessibilityEnabledAttribute,
+                MacAttribute.NSAccessibilityTitleAttribute,
+            },
+            new MacAction[] {
+                MacAction.NSAccessibilityIncrementAction,
+                MacAction.NSAccessibilityDecrementAction,
+            }
         ),
         /* AXJFXTOOLTIP is a custom name used to ignore the tooltip window. See GlassWindow.m for details. */
         AXJFXTOOLTIP(AccessibleRole.TOOLTIP, null, null),
@@ -669,21 +680,24 @@ final class MacAccessible extends Accessible {
 
         MacNotification macNotification = null;
         switch (notification) {
-            case SELECTED_TAB:
-            case SELECTED_PAGE: {
-                View view = getRootView((Scene)getAttribute(SCENE));
-                if (view != null) {
-                    long id = view.getNativeView();
-                    NSAccessibilityPostNotification(id, MacNotification.NSAccessibilityFocusedUIElementChangedNotification.ptr);
+            case FOCUS_ITEM: {
+                AccessibleRole role = (AccessibleRole) getAttribute(ROLE);
+                if (role == AccessibleRole.TABLE_VIEW || role == AccessibleRole.TREE_TABLE_VIEW) {
+                    /* Cell based controls */
+                    macNotification = MacNotification.NSAccessibilitySelectedCellsChangedNotification;
+                } else if (role == AccessibleRole.LIST_VIEW || role == AccessibleRole.TREE_VIEW) {
+                    /* Row based controls */
+                    macNotification = MacNotification.NSAccessibilitySelectedRowsChangedNotification;
+                } else {
+                    /* TabPane and Pagination */
+                    Node node = (Node)getAttribute(FOCUS_ITEM);
+                    long id = getNativeAccessible(node);
+                    if (id != 0) {
+                        NSAccessibilityPostNotification(id, MacNotification.NSAccessibilityFocusedUIElementChangedNotification.ptr);
+                    }
                 }
-                return;
+                break;
             }
-            case SELECTED_ROWS:
-                macNotification = MacNotification.NSAccessibilitySelectedRowsChangedNotification;
-                break;
-            case SELECTED_CELLS:
-                macNotification = MacNotification.NSAccessibilitySelectedCellsChangedNotification;
-                break;
             case FOCUS_NODE: {
                 Node node = (Node)getAttribute(FOCUS_NODE);
                 View view = getView();
@@ -771,6 +785,9 @@ final class MacAccessible extends Accessible {
                 }
                 break;
             }
+            case TITLE:
+                macNotification = MacNotification.NSAccessibilityTitleChangedNotification;
+                break;
             case PARENT:
                 ignoreInnerText = null;
                 break;
@@ -1099,8 +1116,17 @@ final class MacAccessible extends Accessible {
             case NSAccessibilitySelectedAttribute:
             case NSAccessibilitySelectedRowsAttribute:
             case NSAccessibilitySelectedCellsAttribute:
-            case NSAccessibilitySelectedTextRangeAttribute:
                 return true;
+            case NSAccessibilityValueAttribute:
+            case NSAccessibilitySelectedTextRangeAttribute: {
+                AccessibleRole role = (AccessibleRole)getAttribute(ROLE);
+                if (role == AccessibleRole.TEXT_FIELD || role == AccessibleRole.TEXT_AREA) {
+                    if (Boolean.TRUE.equals(getAttribute(EDITABLE))) {
+                        return true;
+                    }
+                }
+                break;
+            }
             default:
         }
         return false;
@@ -1121,11 +1147,8 @@ final class MacAccessible extends Accessible {
                 case NSAccessibilityValueAttribute: {
                     switch (role) {
                         case TAB_PANE:
-                            jfxAttr = SELECTED_TAB;
-                            map = MacVariant::createNSObject;
-                            break;
                         case PAGINATION:
-                            jfxAttr = SELECTED_PAGE;
+                            jfxAttr = FOCUS_ITEM;
                             map = MacVariant::createNSObject;
                             break;
                         case PAGE_ITEM:
@@ -1231,6 +1254,17 @@ final class MacAccessible extends Accessible {
                      */
                     result = 1;
                     break;
+                case NSAccessibilityColumnIndexRangeAttribute:
+                    if (role == AccessibleRole.TABLE_COLUMN) {
+                        /*
+                         * Mac 10.10 sends AXColumnIndexRange instead of AXIndex for
+                         * AXColumns. This is undocumented but without it the column
+                         * header name is not read.
+                         */
+                        result = getAttribute(INDEX);
+                        if (result != null) break;
+                    }
+                    return null;
                 case AXMenuItemCmdModifiers:
                     return attr.map.apply(kAXMenuItemModifierNoCommand);
                 case NSAccessibilityRoleDescriptionAttribute: {
@@ -1369,6 +1403,7 @@ final class MacAccessible extends Accessible {
                     case TEXT:
                     case TEXT_FIELD:
                     case TEXT_AREA:
+                        return null;
                     default:
                 }
                 break;
@@ -1532,22 +1567,60 @@ final class MacAccessible extends Accessible {
         MacAttribute attr = MacAttribute.getAttribute(attribute);
         if (attr != null) {
             switch (attr) {
+                case NSAccessibilityFocusedAttribute: {
+                    MacVariant variant = idToMacVariant(value, MacVariant.NSNumber_Boolean);
+                    if (variant != null && variant.int1 != 0) {
+                        executeAction(AccessibleAction.REQUEST_FOCUS);
+                    }
+                    break;
+                }
                 case NSAccessibilityExpandedAttribute:
                     if (getAttribute(ROLE) == AccessibleRole.COMBO_BOX) {
                         executeAction(AccessibleAction.EXPAND);
                     }
                     break;
-                case NSAccessibilitySelectedCellsAttribute:
-                case NSAccessibilitySelectedRowsAttribute: {
+                case NSAccessibilitySelectedCellsAttribute: {
+                    /* Table and TreeTable */
                     MacVariant variant = idToMacVariant(value, MacVariant.NSArray_id);
                     if (variant != null && variant.longArray != null && variant.longArray.length > 0) {
                         long[] ids = variant.longArray;
+                        ObservableList<Node> items = FXCollections.observableArrayList();
                         for (long id : ids) {
                             MacAccessible acc = GlassAccessibleToMacAccessible(id);
                             if (acc != null) {
-                                acc.executeAction(AccessibleAction.SELECT);
+                                Integer rowIndex = (Integer)acc.getAttribute(ROW_INDEX);
+                                Integer columnIndex = (Integer)acc.getAttribute(COLUMN_INDEX);
+                                if (rowIndex != null && columnIndex != null) {
+                                    Node cell = (Node)getAttribute(CELL_AT_ROW_COLUMN, rowIndex, columnIndex);
+                                    if (cell != null) {
+                                        items.add(cell);
+                                    }
+                                }
                             }
                         }
+                        executeAction(AccessibleAction.SET_SELECTED_ITEMS, items);
+                    }
+                    break;
+                }
+                case NSAccessibilitySelectedRowsAttribute: {
+                    /* List and Tree */
+                    MacVariant variant = idToMacVariant(value, MacVariant.NSArray_id);
+                    if (variant != null && variant.longArray != null && variant.longArray.length > 0) {
+                        long[] ids = variant.longArray;
+                        ObservableList<Node> items = FXCollections.observableArrayList();
+                        for (long id : ids) {
+                            MacAccessible acc = GlassAccessibleToMacAccessible(id);
+                            if (acc != null) {
+                                Integer index = (Integer)acc.getAttribute(INDEX);
+                                if (index != null) {
+                                    Node cell = (Node)getAttribute(ROW_AT_INDEX, index);
+                                    if (cell != null) {
+                                        items.add(cell);
+                                    }
+                                }
+                            }
+                        }
+                        executeAction(AccessibleAction.SET_SELECTED_ITEMS, items);
                     }
                     break;
                 }
@@ -1556,7 +1629,7 @@ final class MacAccessible extends Accessible {
                     if (variant != null) {
                         int start = variant.int1; /* range.location */
                         int end = variant.int1 + variant.int2; /* range.location + range.length */
-                        executeAction(AccessibleAction.SELECT, start, end);
+                        executeAction(AccessibleAction.SET_TEXT_SELECTION, start, end);
                     }
                     break;
                 }

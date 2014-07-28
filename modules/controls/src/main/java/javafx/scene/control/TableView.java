@@ -55,7 +55,6 @@ import javafx.css.StyleableDoubleProperty;
 import javafx.css.StyleableProperty;
 import javafx.event.EventHandler;
 import javafx.event.EventType;
-import javafx.scene.AccessibleAction;
 import javafx.scene.AccessibleAttribute;
 import javafx.scene.AccessibleRole;
 import javafx.scene.Node;
@@ -1650,12 +1649,14 @@ public class TableView<S> extends Control {
         switch (attribute) {
             case COLUMN_COUNT: return getVisibleLeafColumns().size();
             case ROW_COUNT: return getItems().size();
-            case SELECTED_CELLS: {
+            case SELECTED_ITEMS: {
                 // TableViewSkin returns TableRows back to TableView.
                 // TableRowSkin returns TableCells back to TableRow.
+                @SuppressWarnings("unchecked")
                 ObservableList<TableRow<S>> rows = (ObservableList<TableRow<S>>)super.queryAccessibleAttribute(attribute, parameters);
                 List<Node> selection = new ArrayList<>();
                 for (TableRow<S> row : rows) {
+                    @SuppressWarnings("unchecked")
                     ObservableList<Node> cells = (ObservableList<Node>)row.queryAccessibleAttribute(attribute, parameters);
                     if (cells != null) selection.addAll(cells);
                 }
@@ -1669,6 +1670,7 @@ public class TableView<S> extends Control {
                 return cell != null ?  cell : row;
             }
             case CELL_AT_ROW_COLUMN: {
+                @SuppressWarnings("unchecked")
                 TableRow<S> row = (TableRow<S>)super.queryAccessibleAttribute(attribute, parameters);
                 return row != null ? row.queryAccessibleAttribute(attribute, parameters) : null;
             }
@@ -1676,11 +1678,6 @@ public class TableView<S> extends Control {
                 MultipleSelectionModel<S> sm = getSelectionModel();
                 return sm != null && sm.getSelectionMode() == SelectionMode.MULTIPLE;
             }
-            case COLUMN_AT_INDEX: //Skin
-            case COLUMN_INDEX: //Skin
-            case HEADER: //Skin
-            case VERTICAL_SCROLLBAR: //Skin
-            case HORIZONTAL_SCROLLBAR: // Skin
             default: return super.queryAccessibleAttribute(attribute, parameters);
         }
     }
@@ -1920,7 +1917,7 @@ public class TableView<S> extends Control {
 
         void focus(int row, TableColumn<S,?> column) {
             focus(new TablePosition<>(getTableView(), row, column));
-            getTableView().notifyAccessibleAttributeChanged(AccessibleAttribute.SELECTED_CELLS);
+            getTableView().notifyAccessibleAttributeChanged(AccessibleAttribute.FOCUS_ITEM);
         }
 
         void focus(TablePosition<S,?> pos) {

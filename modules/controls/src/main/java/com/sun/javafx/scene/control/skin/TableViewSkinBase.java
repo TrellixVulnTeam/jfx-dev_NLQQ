@@ -973,7 +973,7 @@ public abstract class TableViewSkinBase<M, S, C extends Control, B extends Behav
             }
             case COLUMN_AT_INDEX: {
                 int index = (Integer)parameters[0];
-                TableColumnBase column = getVisibleLeafColumn(index);
+                TableColumnBase<S,?> column = getVisibleLeafColumn(index);
                 return getTableHeaderRow().getColumnHeaderFor(column);
             }
             case HEADER: {
@@ -984,18 +984,6 @@ public abstract class TableViewSkinBase<M, S, C extends Control, B extends Behav
             case VERTICAL_SCROLLBAR: return flow.getVbar();
             case HORIZONTAL_SCROLLBAR: return flow.getHbar();
             default: return super.queryAccessibleAttribute(attribute, parameters);
-        }
-    }
-
-    @Override
-    protected void executeAccessibleAction(AccessibleAction action, Object... parameters) {
-        switch (action) {
-            case SCROLL_TO_INDEX: {
-                Integer index = (Integer)parameters[0];
-                if (index != null) flow.show(index);
-                break;
-            }
-            default: super.executeAccessibleAction(action, parameters);
         }
     }
 

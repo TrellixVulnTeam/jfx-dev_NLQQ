@@ -74,7 +74,6 @@ import javafx.collections.WeakListChangeListener;
 import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.event.EventType;
-import javafx.scene.AccessibleAction;
 import javafx.scene.AccessibleAttribute;
 import javafx.scene.AccessibleRole;
 import javafx.scene.Node;
@@ -1913,10 +1912,12 @@ public class TreeTableView<S> extends Control {
              * TreeTableViewSkin returns TreeTableRows back to TreeTableView.
              * TreeTableRowSkin returns TreeTableCells back to TreeTableRow.
              */
-            case SELECTED_CELLS: {
+            case SELECTED_ITEMS: {
+                @SuppressWarnings("unchecked")
                 ObservableList<TreeTableRow<S>> rows = (ObservableList<TreeTableRow<S>>)super.queryAccessibleAttribute(attribute, parameters);
                 List<Node> selection = new ArrayList<>();
                 for (TreeTableRow<S> row : rows) {
+                    @SuppressWarnings("unchecked")
                     ObservableList<Node> cells = (ObservableList<Node>)row.queryAccessibleAttribute(attribute, parameters);
                     if (cells != null) selection.addAll(cells);
                 }
@@ -1930,6 +1931,7 @@ public class TreeTableView<S> extends Control {
                 return cell != null ?  cell : row;
             }
             case CELL_AT_ROW_COLUMN: {
+                @SuppressWarnings("unchecked")
                 TreeTableRow<S> row = (TreeTableRow<S>)super.queryAccessibleAttribute(attribute, parameters);
                 return row != null ? row.queryAccessibleAttribute(attribute, parameters) : null;
             }
@@ -1937,10 +1939,6 @@ public class TreeTableView<S> extends Control {
                 TreeTableViewSelectionModel<S> sm = getSelectionModel();
                 return sm != null && sm.getSelectionMode() == SelectionMode.MULTIPLE;
             }
-            case HEADER: //Skin
-            case ROW_AT_INDEX: //Skin
-            case VERTICAL_SCROLLBAR: //Skin
-            case HORIZONTAL_SCROLLBAR: // Skin
             default: return super.queryAccessibleAttribute(attribute, parameters);
         }
     }
@@ -2930,7 +2928,7 @@ public class TreeTableView<S> extends Control {
             if (getTreeTableView().getFocusModel() == null) return;
 
             getTreeTableView().getFocusModel().focus(pos.getRow(), pos.getTableColumn());
-            getTreeTableView().notifyAccessibleAttributeChanged(AccessibleAttribute.SELECTED_CELLS);
+            getTreeTableView().notifyAccessibleAttributeChanged(AccessibleAttribute.FOCUS_ITEM);
         }
 
         @Override public int getFocusedIndex() {

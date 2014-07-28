@@ -44,6 +44,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.EventHandler;
 import javafx.event.EventType;
+import javafx.scene.AccessibleAction;
 import javafx.scene.AccessibleAttribute;
 import javafx.scene.Node;
 import javafx.scene.control.TreeItem.TreeModificationEvent;
@@ -393,7 +394,7 @@ public class TreeTableViewSkin<S> extends TableViewSkinBase<S, TreeItem<S>, Tree
                 final int rowIndex = (Integer)parameters[0];
                 return rowIndex < 0 ? null : flow.getPrivateCell(rowIndex);
             }
-            case SELECTED_CELLS: {
+            case SELECTED_ITEMS: {
                 List<Node> selection = new ArrayList<>();
                 TreeTableView.TreeTableViewSelectionModel<S> sm = getSkinnable().getSelectionModel();
                 for (TreeTablePosition<S,?> pos : sm.getSelectedCells()) {
@@ -411,8 +412,41 @@ public class TreeTableViewSkin<S> extends TableViewSkinBase<S, TreeItem<S>, Tree
             default: return super.queryAccessibleAttribute(attribute, parameters);
         }
     }
-    
-    
+
+    @Override
+    protected void executeAccessibleAction(AccessibleAction action, Object... parameters) {
+        switch (action) {
+            case SHOW_ITEM: {
+                Node item = (Node)parameters[0];
+                if (item instanceof TreeTableCell) {
+                    @SuppressWarnings("unchecked")
+                    TreeTableCell<S, ?> cell = (TreeTableCell<S, ?>)item;
+                    flow.show(cell.getIndex());
+                }
+                break;
+            }
+            case SET_SELECTED_ITEMS: {
+                @SuppressWarnings("unchecked")
+                ObservableList<Node> items = (ObservableList<Node>)parameters[0];
+                if (items != null) {
+                    TreeTableView.TreeTableViewSelectionModel<S> sm = getSkinnable().getSelectionModel();
+                    if (sm != null) {
+                        sm.clearSelection();
+                        for (Node item : items) {
+                            if (item instanceof TreeTableCell) {
+                                @SuppressWarnings("unchecked")
+                                TreeTableCell<S, ?> cell = (TreeTableCell<S, ?>)item;
+                                sm.select(cell.getIndex(), cell.getTableColumn());
+                            }
+                        }
+                    }
+                }
+                break;
+            }
+            default: super.executeAccessibleAction(action, parameters);
+        }
+    }
+
     /***************************************************************************
      *                                                                         *
      * Layout                                                                  *

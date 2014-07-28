@@ -575,22 +575,18 @@ public class ListCell<T> extends IndexedCell<T> {
 
     @Override
     public void executeAccessibleAction(AccessibleAction action, Object... parameters) {
-        final ListView<T> listView = getListView();
-        final MultipleSelectionModel<T> sm = listView == null ? null : listView.getSelectionModel();
         switch (action) {
-            case SELECT: {
-                if (sm != null) sm.clearAndSelect(getIndex());
+            case REQUEST_FOCUS: {
+                ListView<T> listView = getListView();
+                if (listView != null) {
+                    FocusModel<T> fm = listView.getFocusModel();
+                    if (fm != null) {
+                        fm.focus(getIndex());
+                    }
+                }
                 break;
             }
-            case ADD_TO_SELECTION: {
-                if (sm != null) sm.select(getIndex());
-                break;
-            }
-            case REMOVE_FROM_SELECTION: {
-                if (sm != null) sm.clearSelection(getIndex());
-                break;
-            }
-            default: super.executeAccessibleAction(action);
+            default: super.executeAccessibleAction(action, parameters);
         }
     }
 }

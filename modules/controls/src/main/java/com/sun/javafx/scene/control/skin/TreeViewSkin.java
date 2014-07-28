@@ -494,7 +494,7 @@ public class TreeViewSkin<T> extends VirtualContainerBase<TreeView<T>, TreeViewB
                 final int rowIndex = (Integer)parameters[0];
                 return rowIndex < 0 ? null : flow.getPrivateCell(rowIndex);
             }
-            case SELECTED_ROWS: {
+            case SELECTED_ITEMS: {
                 MultipleSelectionModel<TreeItem<T>> sm = getSkinnable().getSelectionModel();
                 ObservableList<Integer> indices = sm.getSelectedIndices();
                 List<Node> selection = new ArrayList<>(indices.size());
@@ -513,9 +513,31 @@ public class TreeViewSkin<T> extends VirtualContainerBase<TreeView<T>, TreeViewB
     @Override
     protected void executeAccessibleAction(AccessibleAction action, Object... parameters) {
         switch (action) {
-            case SCROLL_TO_INDEX: {
-                Integer index = (Integer)parameters[0];
-                if (index != null) flow.show(index);
+            case SHOW_ITEM: {
+                Node item = (Node)parameters[0];
+                if (item instanceof TreeCell) {
+                    @SuppressWarnings("unchecked")
+                    TreeCell<T> cell = (TreeCell<T>)item;
+                    flow.show(cell.getIndex());
+                }
+                break;
+            }
+            case SET_SELECTED_ITEMS: {
+                @SuppressWarnings("unchecked")
+                ObservableList<Node> items = (ObservableList<Node>)parameters[0];
+                if (items != null) {
+                    MultipleSelectionModel<TreeItem<T>> sm = getSkinnable().getSelectionModel();
+                    if (sm != null) {
+                        sm.clearSelection();
+                        for (Node item : items) {
+                            if (item instanceof TreeCell) {
+                                @SuppressWarnings("unchecked")
+                                TreeCell<T> cell = (TreeCell<T>)item;
+                                sm.select(cell.getIndex());
+                            }
+                        }
+                    }
+                }
                 break;
             }
             default: super.executeAccessibleAction(action, parameters);
