@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,17 +23,32 @@
  * questions.
  */
 
-#import "com_sun_media_jfxmediaimpl_platform_osx_OSXPlatform.h"
-#import "OSXMediaPlayer.h"
+package launchertest;
 
-/*
- * Class:     com_sun_media_jfxmediaimpl_platform_osx_OSXPlatform
- * Method:    osxPlatformInit
- * Signature: ()V
+import javafx.application.Application;
+
+import static launchertest.Constants.*;
+
+/**
+ * Headless test of ordinary Java class without extending Application.
+ * This is launched by MainLauncherTest.
+ *
+ * This test is currently only supported on Linux.
  */
-JNIEXPORT void JNICALL Java_com_sun_media_jfxmediaimpl_platform_osx_OSXPlatform_osxPlatformInit
-    (JNIEnv *env, jclass klass)
-{
-    // Tell OSXMediaPlayer to initialize itself
-    [OSXMediaPlayer initPlayerPlatform];
+public class TestHeadlessApp {
+
+    public static void main(String[] args) {
+        // Try to launch the Application. This should fail with an
+        // UnsupportedOperationException since it is run in headless mode.
+        try {
+            Application.launch(TestAppNoMain.class, args);
+        } catch (UnsupportedOperationException ex) {
+            System.exit(ERROR_NONE);
+        } catch (Throwable t) {
+            t.printStackTrace();
+            System.exit(ERROR_UNEXPECTED_EXCEPTION);
+        }
+        System.exit(ERROR_LAUNCH_SUCCEEDED);
+    }
+
 }
