@@ -35,7 +35,7 @@ import com.oracle.javafx.scenebuilder.kit.editor.EditorPlatform.Theme;
 import com.oracle.javafx.scenebuilder.kit.editor.drag.DragController;
 import com.oracle.javafx.scenebuilder.kit.editor.i18n.I18N;
 import com.oracle.javafx.scenebuilder.kit.editor.job.BatchJob;
-import com.oracle.javafx.scenebuilder.kit.editor.job.BatchModifySelectionJob;
+import com.oracle.javafx.scenebuilder.kit.editor.job.ModifySelectionJob;
 import com.oracle.javafx.scenebuilder.kit.editor.job.BringForwardJob;
 import com.oracle.javafx.scenebuilder.kit.editor.job.BringToFrontJob;
 import com.oracle.javafx.scenebuilder.kit.editor.job.CutSelectionJob;
@@ -61,7 +61,7 @@ import com.oracle.javafx.scenebuilder.kit.editor.job.gridpane.GridPaneJobUtils.P
 import com.oracle.javafx.scenebuilder.kit.editor.job.gridpane.MoveColumnJob;
 import com.oracle.javafx.scenebuilder.kit.editor.job.gridpane.MoveRowJob;
 import com.oracle.javafx.scenebuilder.kit.editor.job.gridpane.v2.SpanJob;
-import com.oracle.javafx.scenebuilder.kit.editor.job.v2.UpdateSelectionJob;
+import com.oracle.javafx.scenebuilder.kit.editor.job.atomic.UpdateSelectionJob;
 import com.oracle.javafx.scenebuilder.kit.editor.job.wrap.AbstractWrapInJob;
 import com.oracle.javafx.scenebuilder.kit.editor.job.wrap.UnwrapJob;
 import com.oracle.javafx.scenebuilder.kit.editor.messagelog.MessageLog;
@@ -2170,7 +2170,7 @@ public class EditorController {
                 = Metadata.getMetadata().queryProperty(Node.class, pn);
         assert pm instanceof ValuePropertyMetadata;
         final ValuePropertyMetadata vpm = (ValuePropertyMetadata) pm;
-        final BatchModifySelectionJob job = new BatchModifySelectionJob(vpm, effect, this);
+        final ModifySelectionJob job = new ModifySelectionJob(vpm, effect, this);
         getJobManager().push(job);
     }
 

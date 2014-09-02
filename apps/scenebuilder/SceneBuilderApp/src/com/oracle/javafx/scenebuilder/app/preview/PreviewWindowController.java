@@ -45,7 +45,6 @@ import com.oracle.javafx.scenebuilder.kit.util.MathUtils;
 import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ResourceBundle;
@@ -242,9 +241,7 @@ public final class PreviewWindowController extends AbstractWindowController {
 
                         Object sceneGraphRoot = clone.getSceneGraphRoot();
                         final List<String> themeStyleSheetStrings = new ArrayList<>();
-                        for (URL themeURL : EditorPlatform.getThemeStylesheetURLs(editorControllerTheme)) {
-                            themeStyleSheetStrings.add(themeURL.toString());
-                        }
+                        themeStyleSheetStrings.add( EditorPlatform.getThemeStylesheetURL(editorControllerTheme));
 
                         if (sceneGraphRoot instanceof Parent) {
                             ((Parent) sceneGraphRoot).setId(NID_PREVIEW_ROOT);

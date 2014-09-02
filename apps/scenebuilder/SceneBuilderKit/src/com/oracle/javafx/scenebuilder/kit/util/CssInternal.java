@@ -75,19 +75,21 @@ import com.sun.javafx.css.parser.CSSParser;
  */
 public class CssInternal {
 
-    private final static URL caspianThemeUrl = Deprecation.getCaspianStylesheetURL();
-    private final static URL caspianHighContrastThemeUrl = Deprecation.getCaspianHighContrastStylesheetURL();
-    private final static URL caspianEmbeddedThemeUrl = Deprecation.getCaspianEmbeddedStylesheetURL();
-    private final static URL caspianEmbeddedQVGAThemeUrl = Deprecation.getCaspianEmbeddedQVGAStylesheetURL();
-    private final static URL modenaThemeUrl = Deprecation.getModenaStylesheetURL();
-    private final static URL modenaTouchThemeUrl = Deprecation.getModenaTouchStylesheetURL();
-    private final static URL modenaHighContrastBlackonwhiteThemeUrl = Deprecation.getModenaHighContrastBlackonwhiteStylesheetURL();
-    private final static URL modenaHighContrastWhiteonblackThemeUrl = Deprecation.getModenaHighContrastWhiteonblackStylesheetURL();
-    private final static URL modenaHighContrastYellowonblackThemeUrl = Deprecation.getModenaHighContrastYellowonblackStylesheetURL();
-    private final static URL[] themeUrls = {
-        caspianThemeUrl, caspianHighContrastThemeUrl, caspianEmbeddedThemeUrl, caspianEmbeddedQVGAThemeUrl,
-        modenaThemeUrl, modenaTouchThemeUrl, modenaHighContrastBlackonwhiteThemeUrl,
-        modenaHighContrastWhiteonblackThemeUrl, modenaHighContrastYellowonblackThemeUrl
+    private final static String[] themeUrls = {
+        Deprecation.CASPIAN_EMBEDDED_HIGHCONTRAST_STYLESHEET,
+        Deprecation.CASPIAN_EMBEDDED_QVGA_HIGHCONTRAST_STYLESHEET,
+        Deprecation.CASPIAN_EMBEDDED_QVGA_STYLESHEET,
+        Deprecation.CASPIAN_EMBEDDED_STYLESHEET,
+        Deprecation.CASPIAN_HIGHCONTRAST_STYLESHEET,
+        Deprecation.CASPIAN_STYLESHEET,
+        Deprecation.MODENA_HIGHCONTRAST_BLACKONWHITE_STYLESHEET,
+        Deprecation.MODENA_HIGHCONTRAST_WHITEONBLACK_STYLESHEET,
+        Deprecation.MODENA_HIGHCONTRAST_YELLOWONBLACK_STYLESHEET,
+        Deprecation.MODENA_STYLESHEET,
+        Deprecation.MODENA_TOUCH_HIGHCONTRAST_BLACKONWHITE_STYLESHEET,
+        Deprecation.MODENA_TOUCH_HIGHCONTRAST_WHITEONBLACK_STYLESHEET,
+        Deprecation.MODENA_TOUCH_HIGHCONTRAST_YELLOWONBLACK_STYLESHEET,
+        Deprecation.MODENA_TOUCH_STYLESHEET
     };
 
     /**
@@ -102,12 +104,12 @@ public class CssInternal {
 
     public static boolean isCaspianTheme(Style style) {
         return style.getDeclaration().getRule().getStylesheet().getUrl()
-                .equals(caspianThemeUrl.toString());
+                .endsWith(Deprecation.CASPIAN_STYLESHEET);
     }
 
     public static boolean isModenaTheme(Style style) {
         return style.getDeclaration().getRule().getStylesheet().getUrl()
-                .equals(modenaThemeUrl.toString());
+                .endsWith(Deprecation.MODENA_TOUCH_STYLESHEET);
     }
 
     public static String getThemeDisplayName(Style style) {
@@ -134,8 +136,8 @@ public class CssInternal {
         if (rule.getOrigin() == StyleOrigin.AUTHOR) {
             String stylePath = rule.getStylesheet().getUrl();
             assert stylePath != null;
-            for (URL themeUrl : themeUrls) {
-                if (stylePath.equals(themeUrl.toString())) {
+            for (String themeUrl : themeUrls) {
+                if (stylePath.endsWith(themeUrl)) {
                     return true;
                 }
             }
@@ -148,15 +150,11 @@ public class CssInternal {
     }
 
     public static List<String> getThemeStyleClasses(Theme theme) {
-        List<URL> themeStyleSheets = EditorPlatform.getThemeStylesheetURLs(theme);
-        // Add the Modena css, which is not added in the list
-        themeStyleSheets.add(EditorPlatform.getPlatformThemeStylesheetURL());
+        String themeStyleSheet = EditorPlatform.getThemeStylesheetURL(theme);
         Set<String> themeClasses = new HashSet<>();
-        for (URL themeStyleSheet : themeStyleSheets) {
-            // For Theme css, we need to get the text css (.css) to be able to parse it.
-            // (instead of the default binary format .bss)
-            themeClasses.addAll(getStyleClasses(Deprecation.getThemeTextStylesheet(themeStyleSheet)));
-        }
+        // For Theme css, we need to get the text css (.css) to be able to parse it.
+        // (instead of the default binary format .bss)
+        themeClasses.addAll(getStyleClasses(Deprecation.getThemeTextStylesheet(themeStyleSheet)));
         return new ArrayList<>(themeClasses);
     }
 

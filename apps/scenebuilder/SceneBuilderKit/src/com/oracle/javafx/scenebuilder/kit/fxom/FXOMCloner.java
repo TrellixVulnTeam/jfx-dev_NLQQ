@@ -36,7 +36,6 @@ import com.oracle.javafx.scenebuilder.kit.metadata.util.PrefixedValue;
 import com.oracle.javafx.scenebuilder.kit.metadata.util.PropertyName;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.PriorityQueue;
 import java.util.Set;
 
 /**
@@ -53,6 +52,10 @@ public class FXOMCloner {
         assert targetDocument != null;
         this.targetDocument = targetDocument;
         this.fxIdCollector = new FxIdCollector(targetDocument);
+    }
+    
+    public FXOMDocument getTargetDocument() {
+        return targetDocument;
     }
     
     public FXOMObject clone(FXOMObject clonee) {
@@ -265,7 +268,7 @@ public class FXOMCloner {
                     source.getValue());
         } else {
             assert sourceObject != null;
-            if (getNoClonePropertyNames().contains(source.getName())) {
+            if (FXOMNodes.isWeakReference(source)) {
                 result = null;
             } else {
                 result = new FXOMPropertyC(
@@ -281,21 +284,7 @@ public class FXOMCloner {
     private boolean isInsideClonee(FXOMObject object) {
         assert object != null;
         return (object == clonee) || object.isDescendantOf(clonee);
-    }
-    
-    private static Set<PropertyName> noClonePropertyNames;
-    
-    private static synchronized Set<PropertyName> getNoClonePropertyNames() {
-        if (noClonePropertyNames == null) {
-            noClonePropertyNames = new HashSet<>();
-            noClonePropertyNames.add(new PropertyName("labelFor")); //NOI18N
-            noClonePropertyNames.add(new PropertyName("expandedPane")); //NOI18N
-        }
-        
-        return noClonePropertyNames;
-    }
-    
-    
+    }    
     
     private void renameFxIds(FXOMObject clone, boolean preserveCloneeFxId) {
         
@@ -308,7 +297,9 @@ public class FXOMCloner {
             fxIds.remove(clonee.getFxId());
         }
         
-        for (String candidateFxId : new PriorityQueue<>(fxIds.keySet())) {
+        for (Map.Entry<String, FXOMObject> e : fxIds.entrySet()) {
+            final String candidateFxId = e.getKey();
+            final FXOMObject declarer = e.getValue();
             
             final String renamedFxId = fxIdCollector.importFxId(candidateFxId);
             
@@ -322,7 +313,6 @@ public class FXOMCloner {
                  */
                 
                 // 1)
-                final FXOMObject declarer = fxIds.get(candidateFxId);
                 declarer.setFxId(renamedFxId);
 
                 // 2)
