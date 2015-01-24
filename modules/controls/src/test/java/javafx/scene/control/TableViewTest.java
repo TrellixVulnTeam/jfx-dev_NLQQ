@@ -4791,4 +4791,132 @@ public class TableViewTest {
             Thread.currentThread().setUncaughtExceptionHandler(exceptionHandler);
         }
     }
+
+    private int test_rt_39842_count = 0;
+    @Test public void test_rt_39842_selectLeftDown() {
+        test_rt_39842(true, false);
+    }
+
+    @Test public void test_rt_39842_selectLeftUp() {
+        test_rt_39842(true, true);
+    }
+
+    @Test public void test_rt_39842_selectRightDown() {
+        test_rt_39842(false, false);
+    }
+
+    @Test public void test_rt_39842_selectRightUp() {
+        test_rt_39842(false, true);
+    }
+
+    private void test_rt_39842(boolean selectToLeft, boolean selectUpwards) {
+        test_rt_39842_count = 0;
+
+        TableColumn firstNameCol = new TableColumn("First Name");
+        firstNameCol.setCellValueFactory(new PropertyValueFactory<Person, String>("firstName"));
+
+        TableColumn lastNameCol = new TableColumn("Last Name");
+        lastNameCol.setCellValueFactory(new PropertyValueFactory<Person, String>("lastName"));
+
+        TableView<Person> table = new TableView<>();
+        table.setItems(personTestData);
+        table.getColumns().addAll(firstNameCol, lastNameCol);
+
+        sm = table.getSelectionModel();
+        sm.setCellSelectionEnabled(true);
+        sm.setSelectionMode(SelectionMode.MULTIPLE);
+        sm.getSelectedCells().addListener((ListChangeListener) c -> test_rt_39842_count++);
+
+        StageLoader sl = new StageLoader(table);
+
+        assertEquals(0, test_rt_39842_count);
+
+        if (selectToLeft) {
+            if (selectUpwards) {
+                sm.selectRange(3, lastNameCol, 0, firstNameCol);
+            } else {
+                sm.selectRange(0, lastNameCol, 3, firstNameCol);
+            }
+        } else {
+            if (selectUpwards) {
+                sm.selectRange(3, firstNameCol, 0, lastNameCol);
+            } else {
+                sm.selectRange(0, firstNameCol, 3, lastNameCol);
+            }
+        }
+
+        // test model state
+        assertEquals(8, sm.getSelectedCells().size());
+        assertEquals(1, test_rt_39842_count);
+
+        // test visual state
+        for (int row = 0; row <= 3; row++) {
+            for (int column = 0; column <= 1; column++) {
+                IndexedCell cell = VirtualFlowTestUtils.getCell(table, row, column);
+                assertTrue(cell.isSelected());
+            }
+        }
+
+        sl.dispose();
+    }
+
+    @Test public void test_rt_22599() {
+        ObservableList<RT22599_DataType> initialData = FXCollections.observableArrayList(
+                new RT22599_DataType(1, "row1"),
+                new RT22599_DataType(2, "row2"),
+                new RT22599_DataType(3, "row3")
+        );
+
+        TableColumn<RT22599_DataType, String> col = new TableColumn<>("Header");
+        col.setCellValueFactory(param -> new ReadOnlyStringWrapper(param.getValue().text));
+
+        TableView<RT22599_DataType> table = new TableView<>();
+        table.setItems(initialData);
+        table.getColumns().addAll(col);
+
+        StageLoader sl = new StageLoader(table);
+
+        // testing initial state
+        assertNotNull(table.getSkin());
+        assertEquals("row1", VirtualFlowTestUtils.getCell(table, 0, 0).getText());
+        assertEquals("row2", VirtualFlowTestUtils.getCell(table, 1, 0).getText());
+        assertEquals("row3", VirtualFlowTestUtils.getCell(table, 2, 0).getText());
+
+        // change row 0 (where "row1" currently resides), keeping same id.
+        // Because 'set' is called, the control should update to the new content
+        // without any user interaction
+        RT22599_DataType data;
+        initialData.set(0, data = new RT22599_DataType(0, "row1a"));
+        Toolkit.getToolkit().firePulse();
+        assertEquals("row1a", VirtualFlowTestUtils.getCell(table, 0, 0).getText());
+
+        // change the row 0 (where we currently have "row1a") value directly.
+        // Because there is no associated property, this won't be observed, so
+        // the control should still show "row1a" rather than "row1b"
+        data.text = "row1b";
+        Toolkit.getToolkit().firePulse();
+        assertEquals("row1a", VirtualFlowTestUtils.getCell(table, 0, 0).getText());
+
+        // call refresh() to force a refresh of all visible cells
+        table.refresh();
+        Toolkit.getToolkit().firePulse();
+        assertEquals("row1b", VirtualFlowTestUtils.getCell(table, 0, 0).getText());
+
+        sl.dispose();
+    }
+
+    private static class RT22599_DataType {
+        public int id = 0;
+        public String text = "";
+
+        public RT22599_DataType(int id, String text) {
+            this.id = id;
+            this.text = text;
+        }
+
+        @Override public boolean equals(Object obj) {
+            if (obj == null) return false;
+            return id == ((RT22599_DataType)obj).id;
+        }
+    }
 }
