@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,7 +33,6 @@ import javafx.beans.property.BooleanPropertyBase;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.property.StringPropertyBase;
-import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
 import javafx.geometry.NodeOrientation;
@@ -43,14 +42,13 @@ import javafx.scene.input.KeyCombination;
 
 import com.sun.javafx.beans.annotations.Default;
 import com.sun.javafx.collections.TrackableObservableList;
-import com.sun.javafx.robot.impl.FXRobotHelper;
 import com.sun.javafx.scene.SceneHelper;
 import com.sun.javafx.stage.StageHelper;
 import com.sun.javafx.stage.StagePeerListener;
 import com.sun.javafx.tk.TKPulseListener;
 import com.sun.javafx.tk.TKStage;
 import com.sun.javafx.tk.Toolkit;
-import java.security.AllPermission;
+import static com.sun.javafx.FXPermissions.CREATE_TRANSPARENT_WINDOW_PERMISSION;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.DoublePropertyBase;
 import javafx.beans.property.ObjectProperty;
@@ -171,18 +169,8 @@ public class Stage extends Window {
 
     private boolean inNestedEventLoop = false;
 
-    private static ObservableList<Stage> stages = FXCollections.<Stage>observableArrayList();
-
     static {
-        FXRobotHelper.setStageAccessor(new FXRobotHelper.FXRobotStageAccessor() {
-            @Override public ObservableList<Stage> getStages() {
-                return stages;
-            }
-        });
         StageHelper.setStageAccessor(new StageHelper.StageAccessor() {
-            @Override public ObservableList<Stage> getStages() {
-                return stages;
-            }
             @Override public void initSecurityDialog(Stage stage, boolean securityDialog) {
                 stage.initSecurityDialog(securityDialog);
             }
@@ -270,7 +258,7 @@ public class Stage extends Window {
      * Sets a flag indicating that this stage is used for a security dialog and
      * must always be on top. If set, this will cause the window to be always
      * on top, regardless of the setting of the alwaysOnTop property, and
-     * whether or not all permissions are granted when the dialog is shown.
+     * whether or not permissions are granted when the dialog is shown.
      * NOTE: this flag must be set prior to showing the stage the first time.
      *
      * @param securityDialog flag indicating that this Stage is being used to
@@ -630,10 +618,10 @@ public class Stage extends Window {
      * The user can unconditionally exit full-screen mode
      * at any time by pressing {@code ESC}.
      * <p>
-     * There are differences in behavior between applications if a security
-     * manager is present. Applications with permissions are allowed to enter
-     * full-screen mode unrestricted. Applications without the proper
-     * permissions will have the following restrictions:
+     * If a security manager is present, the application must have the
+     * {@link javafx.util.FXPermission} "unrestrictedFullScreen" in order
+     * to enter full-screen mode with no restrictions. Applications without
+     * permission will have the following restrictions:
      * </p>
      * <ul>
      *  <li>Applications can only enter full-screen mode in response
@@ -838,11 +826,11 @@ public class Stage extends Window {
      * platform).
      * </p>
      * <p>
-     * There are differences in behavior between applications if a security
-     * manager is present. Applications with permissions are allowed to set
-     * "always on top" flag on a Stage. In applications without the proper
-     * permissions, an attempt to set the flag will be ignored and the property
-     * value will be restored to "false".
+     * If a security manager is present, the application must have the
+     * {@link javafx.util.FXPermission} "setWindowAlwaysOnTop" in order for
+     * this property to have any effect. If the application does not have
+     * permission, attempting to set this property will be ignored
+     * and the property value will be restored to {@code false}.
      * </p>
      * <p>
      * The property is read only because it can be changed externally
@@ -1147,7 +1135,7 @@ public class Stage extends Window {
                         System.getSecurityManager();
                 if (securityManager != null) {
                     try {
-                        securityManager.checkPermission(new AllPermission());
+                        securityManager.checkPermission(CREATE_TRANSPARENT_WINDOW_PERMISSION);
                     } catch (final SecurityException e) {
                         stageStyle = StageStyle.UNDECORATED;
                     }
@@ -1160,8 +1148,6 @@ public class Stage extends Window {
             impl_peer.setMaximumSize((int) Math.floor(getMaxWidth()),
                     (int) Math.floor(getMaxHeight()));
             peerListener = new StagePeerListener(this, STAGE_ACCESSOR);
-           // Insert this into stages so we have a references to all created stages
-            stages.add(this);
         }
     }
 
@@ -1191,11 +1177,6 @@ public class Stage extends Window {
             if (impl_peer != null) {
                 impl_peer.setIcons(platformImages);
             }
-        }
-
-        if (!value) {
-            // Remove form active stage list
-            stages.remove(this);
         }
 
         if (!value && inNestedEventLoop) {
@@ -1250,9 +1231,13 @@ public class Stage extends Window {
      * A value of null indicates that the default platform specific key combination
      * should be used.
      * <p>
-     * An internal copy of this value is made when entering FullScreen mode and will be
-     * used to trigger the exit from the mode. If an application does not have
-     * the proper permissions, this setting will be ignored.
+     * An internal copy of this value is made when entering full-screen mode and will be
+     * used to trigger the exit from the mode.
+     * If a security manager is present, the application must have the
+     * {@link javafx.util.FXPermission} "unrestrictedFullScreen" to modify the
+     * exit key combination. If the application does not have permission, the
+     * value of this property will be ignored, in which case the
+     * default key combination will be used.
      * </p>
      * @param keyCombination the key combination to exit on
      * @since JavaFX 8.0
@@ -1289,8 +1274,11 @@ public class Stage extends Window {
      * message being displayed.
      * If set to the empty string, then no message will be displayed.
      * <p>
-     * If an application does not have the proper permissions, this setting
-     * will be ignored.
+     * If a security manager is present, the application must have the
+     * {@link javafx.util.FXPermission} "unrestrictedFullScreen" to modify the
+     * exit hint. If the application does not have permission, the
+     * value of this property will be ignored, in which case the
+     * default message will be displayed.
      * </p>
      * @param value the string to be displayed.
      * @since JavaFX 8.0
