@@ -25,6 +25,7 @@
 
 package test.javafx.scene.control;
 
+import static com.sun.xml.internal.fastinfoset.alphabet.BuiltInRestrictedAlphabets.table;
 import static test.com.sun.javafx.scene.control.infrastructure.ControlTestUtils.assertStyleClassContains;
 import static javafx.scene.control.TreeTableColumn.SortType.ASCENDING;
 import static javafx.scene.control.TreeTableColumn.SortType.DESCENDING;
@@ -34,10 +35,14 @@ import static org.junit.Assert.assertEquals;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import com.sun.javafx.scene.control.behavior.TreeTableCellBehavior;
+import javafx.beans.property.ReadOnlyIntegerWrapper;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
 import test.com.sun.javafx.scene.control.infrastructure.KeyEventFirer;
 import test.com.sun.javafx.scene.control.infrastructure.KeyModifier;
 import test.com.sun.javafx.scene.control.infrastructure.MouseEventFirer;
@@ -4345,7 +4350,7 @@ public class TreeTableViewTest {
         assertEquals(0, fm.getFocusedIndex());
         assertEquals(0, fm.getFocusedCell().getRow());
         assertEquals(test_rt_38892_lastNameCol, fm.getFocusedCell().getTableColumn());
-        assertEquals(1, fm.getFocusedCell().getColumn());
+        assertEquals(0, fm.getFocusedCell().getColumn());
     }
 
     @Test public void test_rt_38892_removeSelectionFromCellsInRemovedColumn() {
@@ -5745,5 +5750,166 @@ public class TreeTableViewTest {
         assertEquals(3, sm.getSelectedItems().size());
         assertEquals(3, sm.getSelectedIndices().size());
         assertEquals(3, sm.getSelectedCells().size());
+    }
+
+    @Test public void test_jdk_8147483() {
+        TreeItem<Number> root = new TreeItem<>(0);
+        root.setExpanded(true);
+
+        final TreeTableView<Number> view = new TreeTableView<>(root);
+        view.setShowRoot(false);
+
+        AtomicInteger cellUpdateCount = new AtomicInteger();
+        AtomicInteger rowCreateCount = new AtomicInteger();
+
+        TreeTableColumn<Number, Number> column = new TreeTableColumn<>("Column");
+        column.setCellValueFactory(cdf -> new ReadOnlyIntegerWrapper(0));
+        column.setCellFactory( ttc -> new TreeTableCell<Number,Number>() {
+            @Override protected void updateItem(Number item, boolean empty) {
+                cellUpdateCount.incrementAndGet();
+                super.updateItem(item, empty);
+            }
+        });
+        view.getColumns().add(column);
+
+        view.setRowFactory(t -> {
+            rowCreateCount.incrementAndGet();
+            return new TreeTableRow<>();
+        });
+
+        assertEquals(0, cellUpdateCount.get());
+        assertEquals(0, rowCreateCount.get());
+
+        StageLoader sl = new StageLoader(view);
+
+        // Before the fix, we got cellUpdateCount = 18 and rowCreateCount = 17 for the first add below.
+        // After the second add, these numbers went to 53 and 17 respectively.
+        // Because these numbers might differ on other systems, we simply record the values after
+        // the first add, and then we expect the cellUpdateCount to increase by one, and rowCreateCount to
+        // not increase at all.
+        root.getChildren().add(new TreeItem(1));
+        Toolkit.getToolkit().firePulse();
+        final int firstCellUpdateCount = cellUpdateCount.get();
+        final int firstRowCreateCount = rowCreateCount.get();
+
+        root.getChildren().add(new TreeItem(2));
+        Toolkit.getToolkit().firePulse();
+        assertEquals(firstCellUpdateCount+1, cellUpdateCount.get());
+        assertEquals(firstRowCreateCount, rowCreateCount.get());
+
+        root.getChildren().add(new TreeItem(3));
+        Toolkit.getToolkit().firePulse();
+        assertEquals(firstCellUpdateCount+2, cellUpdateCount.get());
+        assertEquals(firstRowCreateCount, rowCreateCount.get());
+
+        sl.dispose();
+    }
+
+    @Test public void test_jdk_8144681_removeColumn() {
+        TreeTableView<Book> table = new TreeTableView<>();
+
+        TreeItem<Book> root = new TreeItem<>();
+        root.getChildren().addAll(
+                new TreeItem<>(new Book("Book 1", "Author 1", "Remark 1"))
+                , new TreeItem<>(new Book("Book 2", "Author 2", "Remark 2"))
+                , new TreeItem<>(new Book("Book 3", "Author 3", "Remark 3"))
+                , new TreeItem<>(new Book("Book 4", "Author 4", "Remark 4")));
+        table.setRoot(root);
+
+        String[] columns = { "title", "author", "remark" };
+        for (String prop : columns) {
+            TreeTableColumn<Book, String> col = new TreeTableColumn<>(prop);
+            col.setCellValueFactory(new TreeItemPropertyValueFactory<>(prop));
+            table.getColumns().add(col);
+        }
+        table.setColumnResizePolicy(TreeTableView.UNCONSTRAINED_RESIZE_POLICY);
+        table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+        table.getSelectionModel().setCellSelectionEnabled(true);
+
+        table.getSelectionModel().selectAll();
+
+        ControlTestUtils.runWithExceptionHandler(() -> table.getColumns().remove(2));
+    }
+
+    @Test public void test_jdk_8144681_moveColumn() {
+        TreeTableView<Book> table = new TreeTableView<>();
+
+        TreeItem<Book> root = new TreeItem<>();
+        root.getChildren().addAll(
+                new TreeItem<>(new Book("Book 1", "Author 1", "Remark 1"))
+                , new TreeItem<>(new Book("Book 2", "Author 2", "Remark 2"))
+                , new TreeItem<>(new Book("Book 3", "Author 3", "Remark 3"))
+                , new TreeItem<>(new Book("Book 4", "Author 4", "Remark 4")));
+        table.setRoot(root);
+
+        String[] columns = { "title", "author", "remark" };
+        for (String prop : columns) {
+            TreeTableColumn<Book, String> col = new TreeTableColumn<>(prop);
+            col.setCellValueFactory(new TreeItemPropertyValueFactory<>(prop));
+            table.getColumns().add(col);
+        }
+        table.setColumnResizePolicy(TreeTableView.UNCONSTRAINED_RESIZE_POLICY);
+        table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+        table.getSelectionModel().setCellSelectionEnabled(true);
+
+        table.getSelectionModel().selectAll();
+
+        ControlTestUtils.runWithExceptionHandler(() -> {
+            table.getColumns().setAll(table.getColumns().get(0), table.getColumns().get(2), table.getColumns().get(1));
+        });
+    }
+
+    private static class Book {
+        private SimpleStringProperty title = new SimpleStringProperty();
+        private SimpleStringProperty author = new SimpleStringProperty();
+        private SimpleStringProperty remark = new SimpleStringProperty();
+
+        public Book(String title, String author, String remark) {
+            super();
+            setTitle(title);
+            setAuthor(author);
+            setRemark(remark);
+        }
+
+        public SimpleStringProperty titleProperty() {
+            return this.title;
+        }
+
+        public java.lang.String getTitle() {
+            return this.titleProperty().get();
+        }
+
+        public void setTitle(final java.lang.String title) {
+            this.titleProperty().set(title);
+        }
+
+        public SimpleStringProperty authorProperty() {
+            return this.author;
+        }
+
+        public java.lang.String getAuthor() {
+            return this.authorProperty().get();
+        }
+
+        public void setAuthor(final java.lang.String author) {
+            this.authorProperty().set(author);
+        }
+
+        public SimpleStringProperty remarkProperty() {
+            return this.remark;
+        }
+
+        public java.lang.String getRemark() {
+            return this.remarkProperty().get();
+        }
+
+        public void setRemark(final java.lang.String remark) {
+            this.remarkProperty().set(remark);
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s(%s) - %s", getTitle(), getAuthor(), getRemark());
+        }
     }
 }
