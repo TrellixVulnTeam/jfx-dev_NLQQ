@@ -46,6 +46,8 @@ import javafx.css.StyleableProperty;
 import javafx.geometry.Bounds;
 import javafx.scene.Node;
 import javafx.scene.SubScene;
+import javafx.scene.shape.Shape;
+import javafx.scene.shape.Shape3D;
 
 /**
  * Used to access internal methods of Node.
@@ -61,7 +63,23 @@ public abstract class NodeHelper {
     }
 
     protected static NodeHelper getHelper(Node node) {
-        return nodeAccessor.getHelper(node);
+
+        NodeHelper helper = nodeAccessor.getHelper(node);
+        if (helper == null) {
+            String nodeType;
+            if (node instanceof Shape) {
+                nodeType = "Shape";
+            } else if (node instanceof Shape3D) {
+                nodeType = "Shape3D";
+            } else {
+                nodeType = "Node";
+            }
+
+            throw new UnsupportedOperationException(
+                    "Applications should not extend the "
+                    + nodeType + " class directly.");
+        }
+        return helper;
     }
 
     protected static void setHelper(Node node, NodeHelper nodeHelper) {
@@ -286,6 +304,14 @@ public abstract class NodeHelper {
         return nodeAccessor.treeVisibleProperty(node);
     }
 
+    public static boolean isTreeShowing(Node node) {
+        return nodeAccessor.isTreeShowing(node);
+    }
+
+    public static BooleanExpression treeShowingProperty(Node node) {
+        return nodeAccessor.treeShowingProperty(node);
+    }
+
     public static List<Style> getMatchingStyles(CssMetaData cssMetaData, Styleable styleable) {
         return nodeAccessor.getMatchingStyles(cssMetaData, styleable);
     }
@@ -348,6 +374,8 @@ public abstract class NodeHelper {
         void reapplyCSS(Node node);
         boolean isTreeVisible(Node node);
         BooleanExpression treeVisibleProperty(Node node);
+        boolean isTreeShowing(Node node);
+        BooleanExpression treeShowingProperty(Node node);
         List<Style> getMatchingStyles(CssMetaData cssMetaData, Styleable styleable);
         Map<StyleableProperty<?>,List<Style>> findStyles(Node node,
                 Map<StyleableProperty<?>,List<Style>> styleMap);
