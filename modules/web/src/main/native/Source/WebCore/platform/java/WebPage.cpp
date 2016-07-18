@@ -88,6 +88,7 @@
 #include <runtime/JSCJSValue.h>
 #include <JSLock.h>
 #include <API/APICast.h>
+#include <API/JSStringRef.h>
 
 #include "runtime_root.h"
 #if OS(UNIX)
@@ -1356,6 +1357,7 @@ JNIEXPORT void JNICALL Java_com_sun_webkit_WebPage_twkAddJavaScriptBinding
         JSPropertyAttributes attributes = 0;
         JSObjectSetProperty(globalContext, window, jsname, jsval, attributes, &exception);
     }
+    JSStringRelease(jsname);
 }
 
 JNIEXPORT void JNICALL Java_com_sun_webkit_WebPage_twkReset
