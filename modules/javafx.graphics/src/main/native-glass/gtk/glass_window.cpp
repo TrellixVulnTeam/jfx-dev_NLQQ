@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -946,19 +946,19 @@ void WindowContextTop::process_property_notify(GdkEventProperty* event) {
 }
 
 void WindowContextTop::process_configure(GdkEventConfigure* event) {
-    gint x, y;
+    gint x, y, w, h;
     bool updateWindowConstraints = false;
     if (gtk_window_get_decorated(GTK_WINDOW(gtk_widget))) {
         GdkRectangle frame;
         gint top, left, bottom, right;
 
         gdk_window_get_frame_extents(gdk_window, &frame);
-        gint contentX, contentY, contentW, contentH;
+        gint contentX, contentY;
         gdk_window_get_origin(gdk_window, &contentX, &contentY);
 #ifdef GLASS_GTK3
-        gdk_window_get_geometry(gdk_window, NULL, NULL, &contentW, &contentH);
+        gdk_window_get_geometry(gdk_window, NULL, NULL, &w, &h);
 #else
-        gdk_window_get_geometry(gdk_window, NULL, NULL, &contentW, &contentH, NULL);
+        gdk_window_get_geometry(gdk_window, NULL, NULL, &w, &h, NULL);
 #endif
         x = frame.x;
         y = frame.y;
@@ -967,8 +967,8 @@ void WindowContextTop::process_configure(GdkEventConfigure* event) {
 
         top = contentY - frame.y;
         left = contentX - frame.x;
-        bottom = frame.y + frame.height - (contentY + contentH);
-        right = frame.x + frame.width - (contentX + contentW);
+        bottom = frame.y + frame.height - (contentY + h);
+        right = frame.x + frame.width - (contentX + w);
         if (geometry.extents.top != top
                 || geometry.extents.left != left
                 || geometry.extents.bottom != bottom
@@ -982,17 +982,20 @@ void WindowContextTop::process_configure(GdkEventConfigure* event) {
     } else {
         x = event->x;
         y = event->y;
-        geometry.current_width = event->width;
-        geometry.current_height = event->height;
+        w = event->width;
+        h = event->height;
     }
 
-    if (geometry_get_content_width(&geometry) != event->width
-                 || geometry_get_content_height(&geometry) != event->height) {
-        geometry.final_width.value = event->width;
-        geometry.final_width.type = BOUNDSTYPE_CONTENT;
-        geometry.final_height.value = event->height;
-        geometry.final_height.type = BOUNDSTYPE_CONTENT;
+    if (size_assigned && w <= 1 && h <= 1 && (geometry.final_width.value > 1 ||
+                                             geometry.final_height.value > 1)) {
+        // skip artifact
+        return;
     }
+
+    geometry.final_width.value = w;
+    geometry.final_width.type = BOUNDSTYPE_CONTENT;
+    geometry.final_height.value = h;
+    geometry.final_height.type = BOUNDSTYPE_CONTENT;
     geometry_set_window_x(&geometry, x);
     geometry_set_window_y(&geometry, y);
 
@@ -1031,6 +1034,8 @@ void WindowContextTop::process_configure(GdkEventConfigure* event) {
     if (resizable.request != REQUEST_NONE) {
         set_window_resizable(resizable.request == REQUEST_RESIZABLE);
         resizable.request = REQUEST_NONE;
+    } else if (!resizable.value) {
+        set_window_resizable(false);
     } else if (updateWindowConstraints) {
         update_window_constraints();
     }
@@ -1049,7 +1054,7 @@ void WindowContextTop::update_window_constraints() {
                     : resizable.maxh - geometry.extents.top - geometry.extents.bottom,
             0, 0, 0, 0, 0.0, 0.0, GDK_GRAVITY_NORTH_WEST
         };
-        gtk_window_set_geometry_hints(GTK_WINDOW(gtk_widget), NULL, &geom,
+        gdk_window_set_geometry_hints(gdk_window, &geom,
                 static_cast<GdkWindowHints> (GDK_HINT_MIN_SIZE | GDK_HINT_MAX_SIZE));
     }
 }
@@ -1062,7 +1067,7 @@ void WindowContextTop::set_window_resizable(bool res) {
             gtk_window_get_size(GTK_WINDOW(gtk_widget), &w, &h);
         }
         GdkGeometry geom = {w, h, w, h, 0, 0, 0, 0, 0.0, 0.0, GDK_GRAVITY_NORTH_WEST};
-        gtk_window_set_geometry_hints(GTK_WINDOW(gtk_widget), NULL, &geom,
+        gdk_window_set_geometry_hints(gdk_window, &geom,
                 static_cast<GdkWindowHints>(GDK_HINT_MIN_SIZE | GDK_HINT_MAX_SIZE));
         resizable.value = false;
     } else {
@@ -1177,7 +1182,7 @@ void WindowContextTop::window_configure(XWindowChanges *windowChanges,
             newY = windowChanges->y;
         }
 
-        gtk_window_move(GTK_WINDOW(gtk_widget), newX, newY);
+        gdk_window_move(gdk_window, newX, newY);
     }
 
     if (windowChangesMask & (CWWidth | CWHeight)) {
@@ -1196,9 +1201,9 @@ void WindowContextTop::window_configure(XWindowChanges *windowChanges,
             GdkWindowHints hints = (GdkWindowHints)(GDK_HINT_MIN_SIZE | GDK_HINT_MAX_SIZE);
             geom.min_width = geom.max_width = newWidth;
             geom.min_height = geom.max_height = newHeight;
-            gtk_window_set_geometry_hints(GTK_WINDOW(gtk_widget), NULL, &geom, hints);
+            gdk_window_set_geometry_hints(gdk_window, &geom, hints);
         }
-        gtk_window_resize(GTK_WINDOW(gtk_widget), newWidth, newHeight);
+        gdk_window_resize(gdk_window, newWidth, newHeight);
     }
 }
 
