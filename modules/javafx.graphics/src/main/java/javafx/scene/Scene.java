@@ -137,13 +137,22 @@ import java.lang.ref.WeakReference;
  * {@code Color.WHITE} {@code PointLight} placed at the camera position.
  *
  * <p>
- * Scene objects must be constructed and modified on the
- * JavaFX Application Thread.
+ * A {@code Scene} may be created and modified on any thread until it is attached
+ * to a {@link Window} that is {@link Window#isShowing showing}.
+ * After that, it must be modified only on the JavaFX Application Thread.
+ * Note that {@code Scene} is not thread-safe; modifying a {@code Scene} on
+ * multiple threads at the same time will lead to unpredictable results and
+ * must be avoided.
+ * </p>
+ *
+ * <p>
+ * The JavaFX Application Thread is created as part of the startup process for
+ * the JavaFX runtime. See the {@link javafx.application.Application} class and
+ * the {@link Platform#startup(Runnable)} method for more information.
  * </p>
  *
  * <p>Example:</p>
  *
- * <p>
  * <pre>
 import javafx.scene.*;
 import javafx.scene.paint.*;
@@ -157,7 +166,7 @@ r.setFill(Color.BLUE);
 
 root.getChildren().add(r);
  * </pre>
- * </p>
+ *
  * @since JavaFX 2.0
  */
 @DefaultProperty("root")
@@ -297,10 +306,6 @@ public class Scene implements EventTarget {
      * See {@link Node#depthTestProperty depthTest} for more information. A
      * scene with 3D shapes may enable scene anti-aliasing to improve its
      * rendering quality.
-     * <p>
-     * A Scene can be created and modified on any thread until it is attached to a {@code Window} that is showing
-     * ({@link javafx.stage.Window#isShowing()}. This does not mean the Scene is thread-safe,
-     * so manipulation from multiple threads at the same time is illegal, may lead to unexpected results and must be avoided.
      *
      * @param root The root node of the scene graph
      * @param width The width of the scene
@@ -737,6 +742,7 @@ public class Scene implements EventTarget {
      * {@link javafx.application.ConditionalFeature#SCENE3D ConditionalFeature.SCENE3D}
      * and {@link javafx.scene.SceneAntialiasing SceneAntialiasing}
      * for more information.
+     * @return the SceneAntialiasing for this scene
      * @since JavaFX 8.0
      */
     public final SceneAntialiasing getAntiAliasing() {
@@ -1633,7 +1639,7 @@ public class Scene implements EventTarget {
      * Any leading '/' character of the [path] is ignored and the [path] is treated as a path relative to
      * the root of the application's classpath.
      * </p>
-     * <code><pre>
+     * <pre><code>
      *
      * package com.example.javafx.app;
      *
@@ -1655,7 +1661,7 @@ public class Scene implements EventTarget {
      *         launch(args);
      *     }
      * }
-     * </pre></code>
+     * </code></pre>
      * For additional information about using CSS with the scene graph,
      * see the <a href="doc-files/cssref.html">CSS Reference Guide</a>.
      *
@@ -5619,6 +5625,7 @@ public class Scene implements EventTarget {
     /**
      * Defines a function to be called when drag gesture
      * enters this {@code Scene}.
+     * @return function to be called when drag gesture enters this scene
      */
     public final ObjectProperty<EventHandler<? super DragEvent>> onDragEnteredProperty() {
         if (onDragEntered == null) {
@@ -5656,6 +5663,7 @@ public class Scene implements EventTarget {
     /**
      * Defines a function to be called when drag gesture
      * exits this {@code Scene}.
+     * @return the function to be called when drag gesture exits this scene
      */
     public final ObjectProperty<EventHandler<? super DragEvent>> onDragExitedProperty() {
         if (onDragExited == null) {
@@ -5693,6 +5701,8 @@ public class Scene implements EventTarget {
     /**
      * Defines a function to be called when drag gesture progresses
      * within this {@code Scene}.
+     * @return the function to be called when drag gesture progresses within
+     * this scene
      */
     public final ObjectProperty<EventHandler<? super DragEvent>> onDragOverProperty() {
         if (onDragOver == null) {
@@ -5763,6 +5773,8 @@ public class Scene implements EventTarget {
      * on this {@code Scene} during drag and drop gesture. Transfer of data from
      * the {@link DragEvent}'s {@link DragEvent#dragboard dragboard} should
      * happen in this function.
+     * @return the function to be called when the mouse button is released on
+     * this scene during drag and drop gesture
      */
     public final ObjectProperty<EventHandler<? super DragEvent>> onDragDroppedProperty() {
         if (onDragDropped == null) {
@@ -5810,6 +5822,8 @@ public class Scene implements EventTarget {
      * Positional data for the {@code DragEvent} is invalid.  Valid positional
      * data for the {@code DragEvent} is presented in the {@link onDragDropped}
      * event handler.
+     * @return the function to be called when this scene is a drag and drop
+     * gesture source after its data has been dropped on a drop target
      */
     public final ObjectProperty<EventHandler<? super DragEvent>> onDragDoneProperty() {
         if (onDragDone == null) {
@@ -6044,7 +6058,7 @@ public class Scene implements EventTarget {
      * function is not defined in this {@code Node}, then it
      * receives the result string of the input method composition as a
      * series of {@code onKeyTyped} function calls.
-     * </p>
+     * <p>
      * When the {@code Node} loses the input focus, the JavaFX runtime
      * automatically commits the existing composed text if any.
      */
@@ -6307,6 +6321,7 @@ public class Scene implements EventTarget {
     /**
      * The effective node orientation of a scene resolves the inheritance of
      * node orientation, returning either left-to-right or right-to-left.
+     * @return the effective node orientation of this scene
      * @since JavaFX 8.0
      */
     public final ReadOnlyObjectProperty<NodeOrientation>
