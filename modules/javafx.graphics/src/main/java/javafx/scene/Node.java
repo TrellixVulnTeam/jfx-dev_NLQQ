@@ -27,6 +27,7 @@ package javafx.scene;
 
 
 import com.sun.javafx.geometry.BoundsUtils;
+import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
 import javafx.beans.Observable;
 import javafx.beans.binding.BooleanExpression;
@@ -207,16 +208,23 @@ import sun.util.logging.PlatformLogger.Level;
  * doesn't explicitly remove it.
  * <p>
  * Node objects may be constructed and modified on any thread as long they are
- * not yet attached to a {@code Scene} in a {@code Window} that is showing.
+ * not yet attached to a {@link Scene} in a {@link Window} that is
+ * {@link Window#isShowing showing}.
  * An application must attach nodes to such a Scene or modify them on the JavaFX
  * Application Thread.
+ *
+ * <p>
+ * The JavaFX Application Thread is created as part of the startup process for
+ * the JavaFX runtime. See the {@link javafx.application.Application} class and
+ * the {@link Platform#startup(Runnable)} method for more information.
+ * </p>
  *
  * <p>
  * An application should not extend the Node class directly. Doing so may lead to
  * an UnsupportedOperationException being thrown.
  * </p>
  *
- * <h4>String ID</h4>
+ * <h3>String ID</h3>
  * <p>
  * Each node in the scene graph can be given a unique {@link #idProperty id}. This id is
  * much like the "id" attribute of an HTML tag in that it is up to the designer
@@ -316,7 +324,7 @@ import sun.util.logging.PlatformLogger.Level;
  * chain of transforms.  The order in which the transforms are applied is
  * defined by the ObservableList specified in the {@link #getTransforms transforms} variable.
  *
- * <h4>Bounding Rectangles</h4>
+ * <h3>Bounding Rectangles</h3>
  * <p>
  * Since every {@code Node} has transformations, every Node's geometric
  * bounding rectangle can be described differently depending on whether
@@ -346,13 +354,15 @@ import sun.util.logging.PlatformLogger.Level;
  * layoutBounds will always map to {@code 0,0 width x height}.
  *
  * <p> The image shows a node without any transformation and its {@code boundsInLocal}:
- * <p> <img src="doc-files/boundsLocal.png"/> </p>
+ * <p> <img src="doc-files/boundsLocal.png" alt="A sine wave shape enclosed by
+ * an axis-aligned rectangular bounds"> </p>
  * If we rotate the image by 20 degrees we get following result:
- * <p> <img src="doc-files/boundsParent.png"/> </p>
+ * <p> <img src="doc-files/boundsParent.png" alt="An axis-aligned rectangular
+ * bounds that encloses the shape rotated by 20 degrees"> </p>
  * The red rectangle represents {@code boundsInParent} in the
  * coordinate space of the Node's parent. The {@code boundsInLocal} stays the same
  * as in the first image, the green rectangle in this image represents {@code boundsInLocal}
- * in the coordinate space of the Node. </p>
+ * in the coordinate space of the Node.
  *
  * <p> The images show a filled and stroked rectangle and their bounds. The
  * first rectangle {@code [x:10.0 y:10.0 width:100.0 height:100.0 strokeWidth:0]}
@@ -366,10 +376,11 @@ import sun.util.logging.PlatformLogger.Level;
  *
  * Since neither of the rectangles has any transformation applied,
  * {@code boundsInParent} and {@code boundsInLocal} are the same. </p>
- * <p> <img src="doc-files/bounds.png"/> </p>
+ * <p> <img src="doc-files/bounds.png" alt="The rectangles are enclosed by their
+ * respective bounds"> </p>
  *
  *
- * <h4>CSS</h4>
+ * <h3>CSS</h3>
  * <p>
  * The {@code Node} class contains {@code id}, {@code styleClass}, and
  * {@code style} variables that are used in styling this node from
@@ -1199,7 +1210,7 @@ public abstract class Node implements EventTarget, Styleable {
      * @return the id assigned to this {@code Node} using the {@code setId}
      *         method or {@code null}, if no id has been assigned.
      * @defaultValue null
-     * @see <a href="doc-files/cssref.html">CSS Reference Guide</a>.
+     * @see <a href="doc-files/cssref.html">CSS Reference Guide</a>
      */
     public final String getId() {
         return id == null ? null : id.get();
@@ -1291,7 +1302,7 @@ public abstract class Node implements EventTarget, Styleable {
      * @param value The inline CSS style to use for this {@code Node}.
      *         {@code null} is implicitly converted to an empty String.
      * @defaultValue empty string
-     * @see <a href="doc-files/cssref.html">CSS Reference Guide</a>.
+     * @see <a href="doc-files/cssref.html">CSS Reference Guide</a>
      */
     public final void setStyle(String value) {
         styleProperty().set(value);
@@ -1308,7 +1319,7 @@ public abstract class Node implements EventTarget, Styleable {
      * @return The inline CSS style associated with this {@code Node}.
      *         If this {@code Node} does not have an inline style,
      *         an empty String is returned.
-     * @see <a href="doc-files/cssref.html">CSS Reference Guide</a>.
+     * @see <a href="doc-files/cssref.html">CSS Reference Guide</a>
      */
     public final String getStyle() {
         return style == null ? "" : style.get();
@@ -1420,6 +1431,7 @@ public abstract class Node implements EventTarget, Styleable {
      * used. If no Node in the scene graph defines a cursor, then the cursor
      * of the {@code Scene} will be used.
      *
+     * @return the mouse cursor for this {@code Node} and subnodes
      * @defaultValue null
      */
     public final ObjectProperty<Cursor> cursorProperty() {
@@ -1447,9 +1459,9 @@ public abstract class Node implements EventTarget, Styleable {
      * On some platforms ImageView might not support opacity variable.
      *
      * <p>
-     * There is a known limitation of mixing opacity < 1.0 with a 3D Transform.
+     * There is a known limitation of mixing opacity &lt; 1.0 with a 3D Transform.
      * Opacity/Blending is essentially a 2D image operation. The result of
-     * an opacity < 1.0 set on a {@link Group} node with 3D transformed children
+     * an opacity &lt; 1.0 set on a {@link Group} node with 3D transformed children
      * will cause its children to be rendered in order without Z-buffering
      * applied between those children.
      *
@@ -1574,6 +1586,7 @@ public abstract class Node implements EventTarget, Styleable {
      * will cause its children to be rendered in order without Z-buffering
      * applied between those children.
      *
+     * @return the the clipping shape for this {@code Node}
      * @defaultValue null
      */
     public final ObjectProperty<Node> clipProperty() {
@@ -1607,6 +1620,7 @@ public abstract class Node implements EventTarget, Styleable {
      * Caching may be disabled for any node that has a 3D transform on itself,
      * any of its ancestors, or any of its descendants.
      *
+     * @return the hint to cache for this {@code Node}
      * @see #cacheHintProperty
      * @defaultValue false
      */
@@ -1643,7 +1657,7 @@ public abstract class Node implements EventTarget, Styleable {
      * visual quality, yet still animate smoothly.
      * <p>
      * Example:
-     * <pre><code>
+     * <pre>{@code
         expensiveNode.setCache(true);
         expensiveNode.setCacheHint(CacheHint.QUALITY);
         ...
@@ -1657,7 +1671,7 @@ public abstract class Node implements EventTarget, Styleable {
                 new KeyValue(expensiveNode.cacheHintProperty(), CacheHint.QUALITY)
             )
         ).play();
-     </code></pre>
+     }</pre>
      *
      * Note that {@code cacheHint} is only a hint to the system.  Depending on
      * the details of the node or the transform, this hint may be ignored.
@@ -1667,6 +1681,7 @@ public abstract class Node implements EventTarget, Styleable {
      * Caching may be disabled for any node that has a 3D transform on itself,
      * any of its ancestors, or any of its descendants.
      *
+     * @return the {@code CacheHint} for this {@code Node}
      * @see #cacheProperty
      * @defaultValue CacheHint.DEFAULT
      */
@@ -1697,6 +1712,7 @@ public abstract class Node implements EventTarget, Styleable {
      * to be rendered in order without Z-buffering applied between those
      * children.
      *
+     * @return the effect for this {@code Node}
      * @defaultValue null
      */
     public final ObjectProperty<Effect> effectProperty() {
@@ -1738,6 +1754,7 @@ public abstract class Node implements EventTarget, Styleable {
      * See the constructor in Scene with depthBuffer as one of its input
      * arguments.
      *
+     * @return the depth test setting for this {@code Node}
      * @see javafx.scene.Scene
      * @defaultValue INHERIT
      */
@@ -1803,6 +1820,7 @@ public abstract class Node implements EventTarget, Styleable {
      * ancestor being disabled even if the individual {@code disable} state on
      * this {@code Node} is {@code false}.
      *
+     * @return the disabled state for this {@code Node}
      * @defaultValue false
      */
     public final BooleanProperty disableProperty() {
@@ -2322,6 +2340,8 @@ public abstract class Node implements EventTarget, Styleable {
     /**
      * Defines a function to be called when drag gesture
      * enters this {@code Node}.
+     * @return the event handler that is called when drag gesture enters this
+     * {@code Node}
      */
     public final ObjectProperty<EventHandler<? super DragEvent>>
             onDragEnteredProperty() {
@@ -2341,6 +2361,8 @@ public abstract class Node implements EventTarget, Styleable {
     /**
      * Defines a function to be called when drag gesture
      * exits this {@code Node}.
+     * @return the event handler that is called when drag gesture exits this
+     * {@code Node}
      */
     public final ObjectProperty<EventHandler<? super DragEvent>>
             onDragExitedProperty() {
@@ -2360,6 +2382,8 @@ public abstract class Node implements EventTarget, Styleable {
     /**
      * Defines a function to be called when drag gesture progresses within
      * this {@code Node}.
+     * @return the event handler that is called when drag gesture progresses
+     * within this {@code Node}
      */
     public final ObjectProperty<EventHandler<? super DragEvent>>
             onDragOverProperty() {
@@ -2404,6 +2428,8 @@ public abstract class Node implements EventTarget, Styleable {
      * on this {@code Node} during drag and drop gesture. Transfer of data from
      * the {@link DragEvent}'s {@link DragEvent#dragboard dragboard} should
      * happen in this function.
+     * @return the event handler that is called when the mouse button is
+     * released on this {@code Node}
      */
     public final ObjectProperty<EventHandler<? super DragEvent>>
             onDragDroppedProperty() {
@@ -2430,6 +2456,8 @@ public abstract class Node implements EventTarget, Styleable {
      * appearance to a user that the data has been moved by the drag and drop
      * gesture. A {@code transferMode} that has the value {@code NONE}
      * indicates that no data was transferred during the drag and drop gesture.
+     * @return the event handler that is called when this {@code Node} is a drag
+     * and drop gesture source after its data has been dropped on a drop target
      */
     public final ObjectProperty<EventHandler<? super DragEvent>>
             onDragDoneProperty() {
@@ -2670,9 +2698,9 @@ public abstract class Node implements EventTarget, Styleable {
      * {@link #layoutBoundsProperty() layoutBounds minX} position (which might not be 0) to the desired location.
      *
      * <p>For example, if {@code textnode} should be positioned at {@code finalX}
-     * <code><pre>
+     * <pre>{@code
      *     textnode.setLayoutX(finalX - textnode.getLayoutBounds().getMinX());
-     * </pre></code>
+     * }</pre>
      * <p>
      * Failure to subtract {@code layoutBounds minX} may result in misplacement
      * of the node.  The {@link #relocate(double, double) relocate(x, y)} method will automatically do the
@@ -2687,7 +2715,7 @@ public abstract class Node implements EventTarget, Styleable {
      * as its parent, then the layout region will set {@code layoutX} according to its
      * own layout policy.   If the node is unmanaged or parented by a {@link Group},
      * then the application may set {@code layoutX} directly to position it.
-     * <p>
+     *
      * @see #relocate(double, double)
      * @see #layoutBoundsProperty()
      *
@@ -2745,9 +2773,9 @@ public abstract class Node implements EventTarget, Styleable {
      * {@link #layoutBoundsProperty() layoutBounds minY} position (which might not be 0) to the desired location.
      *
      * <p>For example, if {@code textnode} should be positioned at {@code finalY}
-     * <code><pre>
+     * <pre>{@code
      *     textnode.setLayoutY(finalY - textnode.getLayoutBounds().getMinY());
-     * </pre></code>
+     * }</pre>
      * <p>
      * Failure to subtract {@code layoutBounds minY} may result in misplacement
      * of the node.  The {@link #relocate(double, double) relocate(x, y)} method will automatically do the
@@ -3111,7 +3139,7 @@ public abstract class Node implements EventTarget, Styleable {
      * horizontal, will pass in the node's preferred width to get the preferred
      * height; if vertical, will pass in the node's preferred height to get the width,
      * and if null, will compute the preferred width/height independently.
-     * <p>
+     * </p>
      *
      * @see #isResizable()
      * @see #getContentBias()
@@ -3207,6 +3235,7 @@ public abstract class Node implements EventTarget, Styleable {
     /**
      * Returns the area of this {@code Node} projected onto the
      * physical screen in pixel units.
+     * @return the area of this {@code Node} projected onto the physical screen
      * @since JavaFX 8.0
      */
     public double computeAreaInScreen() {
@@ -3380,6 +3409,7 @@ public abstract class Node implements EventTarget, Styleable {
      * this variable. For example, the x or y variables of a shape, or
      * translateX, translateY should never be bound to boundsInParent
      * for the purpose of positioning the node.
+     * @return the boundsInParent for this {@code Node}
      */
     public final ReadOnlyObjectProperty<Bounds> boundsInParentProperty() {
         return getMiscProperties().boundsInParentProperty();
@@ -3415,6 +3445,7 @@ public abstract class Node implements EventTarget, Styleable {
      * of these values in a node to an expression that depends upon this variable.
      * For example, the x or y variables of a shape should never be bound
      * to boundsInLocal for the purpose of positioning the node.
+     * @return the boundsInLocal for this {@code Node}
      */
     public final ReadOnlyObjectProperty<Bounds> boundsInLocalProperty() {
         return getMiscProperties().boundsInLocalProperty();
@@ -4070,6 +4101,9 @@ public abstract class Node implements EventTarget, Styleable {
      * coordinate space of this {@code Node}) is contained within the shape of
      * this {@code Node}. Note that this method does not take visibility into
      * account; the test is based on the geometry of this {@code Node} only.
+     * @param localX the x coordinate of the point in Node's space
+     * @param localY the y coordinate of the point in Node's space
+     * @return the result of contains for this {@code Node}
      */
     public boolean contains(double localX, double localY) {
         if (containsBounds(localX, localY)) {
@@ -4121,6 +4155,8 @@ public abstract class Node implements EventTarget, Styleable {
      * coordinate space of this {@code Node}) is contained within the shape of
      * this {@code Node}. Note that this method does not take visibility into
      * account; the test is based on the geometry of this {@code Node} only.
+     * @param localPoint the 2D point in Node's space
+     * @return the result of contains for this {@code Node}
      */
     public boolean contains(Point2D localPoint) {
         return contains(localPoint.getX(), localPoint.getY());
@@ -4133,6 +4169,11 @@ public abstract class Node implements EventTarget, Styleable {
      * account; the test is based on the geometry of this {@code Node} only.
      * The default behavior of this function is simply to check if the
      * given coordinates intersect with the local bounds.
+     * @param localX the x coordinate of a rectangle in Node's space
+     * @param localY the y coordinate of a rectangle in Node's space
+     * @param localWidth the width of a rectangle in Node's space
+     * @param localHeight the height of a rectangle in Node's space
+     * @return the result of intersects for this {@code Node}
      */
     public boolean intersects(double localX, double localY, double localWidth, double localHeight) {
         BaseBounds tempBounds = TempState.getInstance().bounds;
@@ -4151,6 +4192,8 @@ public abstract class Node implements EventTarget, Styleable {
      * account; the test is based on the geometry of this {@code Node} only.
      * The default behavior of this function is simply to check if the
      * given coordinates intersect with the local bounds.
+     * @param localBounds the bounds
+     * @return the result of intersects for this {@code Node}
      */
     public boolean intersects(Bounds localBounds) {
         return intersects(localBounds.getMinX(), localBounds.getMinY(), localBounds.getWidth(), localBounds.getHeight());
@@ -4555,6 +4598,8 @@ public abstract class Node implements EventTarget, Styleable {
      * into the coordinate space of its scene.
      * Note that if this node is in a {@link SubScene}, the result is in the subscene coordinates,
      * not that of {@link javafx.scene.Scene}.
+     * @param localPoint a 3D point in Node's space
+     * @return the transformed 3D point in Scene's space
      * @see #localToScene(javafx.geometry.Point3D, boolean)
      * @since JavaFX 8.0
      */
@@ -4567,6 +4612,10 @@ public abstract class Node implements EventTarget, Styleable {
      * into the coordinate space of its scene.
      * Note that if this node is in a {@link SubScene}, the result is in the subscene coordinates,
      * not that of {@link javafx.scene.Scene}.
+     * @param x the x coordinate of a point in Node's space
+     * @param y the y coordinate of a point in Node's space
+     * @param z the z coordinate of a point in Node's space
+     * @return the transformed 3D point in Scene's space
      * @see #localToScene(double, double, double, boolean)
      * @since JavaFX 8.0
      */
@@ -4729,6 +4778,9 @@ public abstract class Node implements EventTarget, Styleable {
     /**
      * Transforms a point from the coordinate space of the parent into the
      * local coordinate space of this {@code Node}.
+     * @param parentX the x coordinate in Parent's space
+     * @param parentY the y coordinate in Parent's space
+     * @return the transformed 2D point in Node's space
      */
     public Point2D parentToLocal(double parentX, double parentY) {
         final com.sun.javafx.geom.Point2D tempPt =
@@ -4745,6 +4797,8 @@ public abstract class Node implements EventTarget, Styleable {
     /**
      * Transforms a point from the coordinate space of the parent into the
      * local coordinate space of this {@code Node}.
+     * @param parentPoint the 2D point in Parent's space
+     * @return the transformed 2D point in Node's space
      */
     public Point2D parentToLocal(Point2D parentPoint) {
         return parentToLocal(parentPoint.getX(), parentPoint.getY());
@@ -4753,6 +4807,8 @@ public abstract class Node implements EventTarget, Styleable {
     /**
      * Transforms a point from the coordinate space of the parent into the
      * local coordinate space of this {@code Node}.
+     * @param parentPoint parentPoint the 3D point in Parent's space
+     * @return the transformed 3D point in Node's space
      * @since JavaFX 8.0
      */
     public Point3D parentToLocal(Point3D parentPoint) {
@@ -4762,6 +4818,10 @@ public abstract class Node implements EventTarget, Styleable {
     /**
      * Transforms a point from the coordinate space of the parent into the
      * local coordinate space of this {@code Node}.
+     * @param parentX the x coordinate in Parent's space
+     * @param parentY the y coordinate in Parent's space
+     * @param parentZ the z coordinate in Parent's space
+     * @return the transformed 3D point in Node's space
      * @since JavaFX 8.0
      */
     public Point3D parentToLocal(double parentX, double parentY, double parentZ) {
@@ -4779,6 +4839,8 @@ public abstract class Node implements EventTarget, Styleable {
     /**
      * Transforms a rectangle from the coordinate space of the parent into the
      * local coordinate space of this {@code Node}.
+     * @param parentBounds the bounds in Parent's space
+     * @return the transformed bounds in Node's space
      */
     public Bounds parentToLocal(Bounds parentBounds) {
         // Do a quick update of localToParentTransform so that we can determine
@@ -4806,6 +4868,9 @@ public abstract class Node implements EventTarget, Styleable {
     /**
      * Transforms a point from the local coordinate space of this {@code Node}
      * into the coordinate space of its parent.
+     * @param localX the x coordinate of the point in Node's space
+     * @param localY the y coordinate of the point in Node's space
+     * @return the transformed 2D point in Parent's space
      */
     public Point2D localToParent(double localX, double localY) {
         final com.sun.javafx.geom.Point2D tempPt =
@@ -4818,6 +4883,8 @@ public abstract class Node implements EventTarget, Styleable {
     /**
      * Transforms a point from the local coordinate space of this {@code Node}
      * into the coordinate space of its parent.
+     * @param localPoint the 2D point in Node's space
+     * @return the transformed 2D point in Parent's space
      */
     public Point2D localToParent(Point2D localPoint) {
         return localToParent(localPoint.getX(), localPoint.getY());
@@ -4826,6 +4893,8 @@ public abstract class Node implements EventTarget, Styleable {
     /**
      * Transforms a point from the local coordinate space of this {@code Node}
      * into the coordinate space of its parent.
+     * @param localPoint the 3D point in Node's space
+     * @return the transformed 3D point in Parent's space
      * @since JavaFX 8.0
      */
     public Point3D localToParent(Point3D localPoint) {
@@ -4835,6 +4904,10 @@ public abstract class Node implements EventTarget, Styleable {
     /**
      * Transforms a point from the local coordinate space of this {@code Node}
      * into the coordinate space of its parent.
+     * @param x the x coordinate of the point in Node's space
+     * @param y the y coordinate of the point in Node's space
+     * @param z the z coordinate of the point in Node's space
+     * @return the transformed 3D point in Parent's space
      * @since JavaFX 8.0
      */
     public Point3D localToParent(double x, double y, double z) {
@@ -4848,6 +4921,8 @@ public abstract class Node implements EventTarget, Styleable {
     /**
      * Transforms a bounds from the local coordinate space of this
      * {@code Node} into the coordinate space of its parent.
+     * @param localBounds the bounds in Node's space
+     * @return the transformed bounds in Parent's space
      */
     public Bounds localToParent(Bounds localBounds) {
         // Do a quick update of localToParentTransform so that we can determine
@@ -5371,14 +5446,6 @@ public abstract class Node implements EventTarget, Styleable {
      *                      viewOrder property handling                        *
      *                                                                         *
      **************************************************************************/
-    public final void setViewOrder(double value) {
-        viewOrderProperty().set(value);
-    }
-
-    public final double getViewOrder() {
-        return (miscProperties == null) ? DEFAULT_VIEW_ORDER
-                : miscProperties.getViewOrder();
-    }
 
     /**
      * Defines the rendering and picking order of this {@code Node} within its
@@ -5405,12 +5472,22 @@ public abstract class Node implements EventTarget, Styleable {
      * {@code children} list in order when doing layout or focus traversal.
      * </p>
      *
+     * @return the view order for this {@code Node}
      * @defaultValue 0.0
      *
      * @since 9
      */
     public final DoubleProperty viewOrderProperty() {
         return getMiscProperties().viewOrderProperty();
+    }
+
+    public final void setViewOrder(double value) {
+        viewOrderProperty().set(value);
+    }
+
+    public final double getViewOrder() {
+        return (miscProperties == null) ? DEFAULT_VIEW_ORDER
+                : miscProperties.getViewOrder();
     }
 
     /***************************************************************************
@@ -5424,6 +5501,7 @@ public abstract class Node implements EventTarget, Styleable {
      * before {@link #translateXProperty translateX}, {@link #translateYProperty translateY}, {@link #scaleXProperty scaleX}, and
      * {@link #scaleYProperty scaleY}, {@link #rotateProperty rotate} transforms.
      *
+     * @return the transforms for this {@code Node}
      * @defaultValue empty
      */
     public final ObservableList<Transform> getTransforms() {
@@ -5455,6 +5533,7 @@ public abstract class Node implements EventTarget, Styleable {
      * This variable can be used to alter the location of a node without disturbing
      * its {@link #layoutBoundsProperty layoutBounds}, which makes it useful for animating a node's location.
      *
+     * @return the translateX for this {@code Node}
      * @defaultValue 0
      */
     public final DoubleProperty translateXProperty() {
@@ -5482,6 +5561,7 @@ public abstract class Node implements EventTarget, Styleable {
      * This variable can be used to alter the location of a node without disturbing
      * its {@link #layoutBoundsProperty layoutBounds}, which makes it useful for animating a node's location.
      *
+     * @return the translateY for this {@code Node}
      * @defaultValue 0
      */
     public final DoubleProperty translateYProperty() {
@@ -5512,6 +5592,7 @@ public abstract class Node implements EventTarget, Styleable {
      * {@link javafx.application.ConditionalFeature#SCENE3D ConditionalFeature.SCENE3D}
      * for more information.
      *
+     * @return the translateZ for this {@code Node}
      * @defaultValue 0
      */
     public final DoubleProperty translateZProperty() {
@@ -5539,6 +5620,7 @@ public abstract class Node implements EventTarget, Styleable {
      * The pivot point about which the scale occurs is the center of the
      * untransformed {@link #layoutBoundsProperty layoutBounds}.
      *
+     * @return the scaleX for this {@code Node}
      * @defaultValue 1.0
      */
     public final DoubleProperty scaleXProperty() {
@@ -5566,6 +5648,7 @@ public abstract class Node implements EventTarget, Styleable {
      * The pivot point about which the scale occurs is the center of the
      * untransformed {@link #layoutBoundsProperty layoutBounds}.
      *
+     * @return the scaleY for this {@code Node}
      * @defaultValue 1.0
      */
     public final DoubleProperty scaleYProperty() {
@@ -5598,6 +5681,7 @@ public abstract class Node implements EventTarget, Styleable {
      * {@link javafx.application.ConditionalFeature#SCENE3D ConditionalFeature.SCENE3D}
      * for more information.
      *
+     * @return the scaleZ for this {@code Node}
      * @defaultValue 1.0
      */
     public final DoubleProperty scaleZProperty() {
@@ -5636,6 +5720,7 @@ public abstract class Node implements EventTarget, Styleable {
      * ObservableList, and add a {@link javafx.scene.transform.Rotate} transform,
      * which has a user-specifiable pivot point.
      *
+     * @return the rotate for this {@code Node}
      * @defaultValue 0.0
      */
     public final DoubleProperty rotateProperty() {
@@ -5659,6 +5744,7 @@ public abstract class Node implements EventTarget, Styleable {
      * {@link javafx.application.ConditionalFeature#SCENE3D ConditionalFeature.SCENE3D}
      * for more information.
      *
+     * @return the rotationAxis for this {@code Node}
      * @defaultValue Rotate.Z_AXIS
      */
     public final ObjectProperty<Point3D> rotationAxisProperty() {
@@ -5669,6 +5755,7 @@ public abstract class Node implements EventTarget, Styleable {
      * An affine transform that holds the computed local-to-parent transform.
      * This is the concatenation of all transforms in this node, including all
      * of the convenience transforms.
+     * @return the localToParent transform for this {@code Node}
      * @since JavaFX 2.2
      */
     public final ReadOnlyObjectProperty<Transform> localToParentTransformProperty() {
@@ -5700,6 +5787,7 @@ public abstract class Node implements EventTarget, Styleable {
      * transformation changes in their common parents.
      * </p>
      *
+     * @return the localToScene transform for this {@code Node}
      * @since JavaFX 2.2
      */
     public final ReadOnlyObjectProperty<Transform> localToSceneTransformProperty() {
@@ -6393,6 +6481,7 @@ public abstract class Node implements EventTarget, Styleable {
     /**
      * The effective orientation of a node resolves the inheritance of
      * node orientation, returning either left-to-right or right-to-left.
+     * @return the node orientation for this {@code Node}
      * @since JavaFX 8.0
      */
     public final ReadOnlyObjectProperty<NodeOrientation>
@@ -6416,6 +6505,7 @@ public abstract class Node implements EventTarget, Styleable {
      * nodes will will answer {@code false} and implement right-to-left
      * orientation without using the automatic transformation.
      * </p>
+     * @return true if this {@code Node} should be mirrored
      * @since JavaFX 8.0
      */
     public boolean usesMirroring() {
@@ -7124,6 +7214,8 @@ public abstract class Node implements EventTarget, Styleable {
      * transparent to mouse events. When choosing target for mouse event, nodes
      * with {@code mouseTransparent} set to {@code true} and their subtrees
      * won't be taken into account.
+     * @return is this {@code Node} (together with all its children) is completely
+     * transparent to mouse events.
      */
     public final BooleanProperty mouseTransparentProperty() {
         return getMiscProperties().mouseTransparentProperty();
@@ -7244,6 +7336,8 @@ public abstract class Node implements EventTarget, Styleable {
     /**
      * Defines a function to be called when a context menu
      * has been requested on this {@code Node}.
+     * @return the event handler that is called when a context menu has been
+     * requested on this {@code Node}
      * @since JavaFX 2.1
      */
     public final ObjectProperty<EventHandler<? super ContextMenuEvent>>
@@ -7264,6 +7358,8 @@ public abstract class Node implements EventTarget, Styleable {
     /**
      * Defines a function to be called when a mouse button has been clicked
      * (pressed and released) on this {@code Node}.
+     * @return the event handler that is called when a mouse button has been
+     * clicked (pressed and released) on this {@code Node}
      */
     public final ObjectProperty<EventHandler<? super MouseEvent>>
             onMouseClickedProperty() {
@@ -7283,6 +7379,8 @@ public abstract class Node implements EventTarget, Styleable {
     /**
      * Defines a function to be called when a mouse button is pressed
      * on this {@code Node} and then dragged.
+     * @return the event handler that is called when a mouse button is pressed
+     * on this {@code Node} and then dragged
      */
     public final ObjectProperty<EventHandler<? super MouseEvent>>
             onMouseDraggedProperty() {
@@ -7301,6 +7399,8 @@ public abstract class Node implements EventTarget, Styleable {
 
     /**
      * Defines a function to be called when the mouse enters this {@code Node}.
+     * @return the event handler that is called when a mouse enters this
+     * {@code Node}
      */
     public final ObjectProperty<EventHandler<? super MouseEvent>>
             onMouseEnteredProperty() {
@@ -7319,6 +7419,8 @@ public abstract class Node implements EventTarget, Styleable {
 
     /**
      * Defines a function to be called when the mouse exits this {@code Node}.
+     * @return the event handler that is called when a mouse exits this
+     * {@code Node}
      */
     public final ObjectProperty<EventHandler<? super MouseEvent>>
             onMouseExitedProperty() {
@@ -7338,6 +7440,8 @@ public abstract class Node implements EventTarget, Styleable {
     /**
      * Defines a function to be called when mouse cursor moves within
      * this {@code Node} but no buttons have been pushed.
+     * @return the event handler that is called when a mouse cursor moves
+     * within this {@code Node} but no buttons have been pushed
      */
     public final ObjectProperty<EventHandler<? super MouseEvent>>
             onMouseMovedProperty() {
@@ -7357,6 +7461,8 @@ public abstract class Node implements EventTarget, Styleable {
     /**
      * Defines a function to be called when a mouse button
      * has been pressed on this {@code Node}.
+     * @return the event handler that is called when a mouse button has been
+     * pressed on this {@code Node}
      */
     public final ObjectProperty<EventHandler<? super MouseEvent>>
             onMousePressedProperty() {
@@ -7376,6 +7482,8 @@ public abstract class Node implements EventTarget, Styleable {
     /**
      * Defines a function to be called when a mouse button
      * has been released on this {@code Node}.
+     * @return the event handler that is called when a mouse button has been
+     * released on this {@code Node}
      */
     public final ObjectProperty<EventHandler<? super MouseEvent>>
             onMouseReleasedProperty() {
@@ -7395,6 +7503,8 @@ public abstract class Node implements EventTarget, Styleable {
     /**
      * Defines a function to be called when drag gesture has been
      * detected. This is the right place to start drag and drop operation.
+     * @return the event handler that is called when drag gesture has been
+     * detected
      */
     public final ObjectProperty<EventHandler<? super MouseEvent>>
             onDragDetectedProperty() {
@@ -7414,6 +7524,8 @@ public abstract class Node implements EventTarget, Styleable {
     /**
      * Defines a function to be called when a full press-drag-release gesture
      * progresses within this {@code Node}.
+     * @return the event handler that is called when a full press-drag-release
+     * gesture progresses within this {@code Node}
      * @since JavaFX 2.1
      */
     public final ObjectProperty<EventHandler<? super MouseDragEvent>>
@@ -7434,6 +7546,8 @@ public abstract class Node implements EventTarget, Styleable {
     /**
      * Defines a function to be called when a full press-drag-release gesture
      * ends (by releasing mouse button) within this {@code Node}.
+     * @return the event handler that is called when a full press-drag-release
+     * gesture ends (by releasing mouse button) within this {@code Node}
      * @since JavaFX 2.1
      */
     public final ObjectProperty<EventHandler<? super MouseDragEvent>>
@@ -7454,6 +7568,8 @@ public abstract class Node implements EventTarget, Styleable {
     /**
      * Defines a function to be called when a full press-drag-release gesture
      * enters this {@code Node}.
+     * @return the event handler that is called when a full press-drag-release
+     * gesture enters this {@code Node}
      * @since JavaFX 2.1
      */
     public final ObjectProperty<EventHandler<? super MouseDragEvent>>
@@ -7474,6 +7590,8 @@ public abstract class Node implements EventTarget, Styleable {
     /**
      * Defines a function to be called when a full press-drag-release gesture
      * leaves this {@code Node}.
+     * @return the event handler that is called when a full press-drag-release
+     * gesture leaves this {@code Node}
      * @since JavaFX 2.1
      */
     public final ObjectProperty<EventHandler<? super MouseDragEvent>>
@@ -7500,6 +7618,8 @@ public abstract class Node implements EventTarget, Styleable {
 
     /**
      * Defines a function to be called when a scrolling gesture is detected.
+     * @return the event handler that is called when a scrolling gesture is
+     * detected
      * @since JavaFX 2.2
      */
     public final ObjectProperty<EventHandler<? super ScrollEvent>>
@@ -7519,6 +7639,8 @@ public abstract class Node implements EventTarget, Styleable {
 
     /**
      * Defines a function to be called when user performs a scrolling action.
+     * @return the event handler that is called when user performs a scrolling
+     * action
      */
     public final ObjectProperty<EventHandler<? super ScrollEvent>>
             onScrollProperty() {
@@ -7537,6 +7659,7 @@ public abstract class Node implements EventTarget, Styleable {
 
     /**
      * Defines a function to be called when a scrolling gesture ends.
+     * @return the event handler that is called when a scrolling gesture ends
      * @since JavaFX 2.2
      */
     public final ObjectProperty<EventHandler<? super ScrollEvent>>
@@ -7556,6 +7679,8 @@ public abstract class Node implements EventTarget, Styleable {
 
     /**
      * Defines a function to be called when a rotation gesture is detected.
+     * @return the event handler that is called when a rotation gesture is
+     * detected
      * @since JavaFX 2.2
      */
     public final ObjectProperty<EventHandler<? super RotateEvent>>
@@ -7575,6 +7700,8 @@ public abstract class Node implements EventTarget, Styleable {
 
     /**
      * Defines a function to be called when user performs a rotation action.
+     * @return the event handler that is called when user performs a rotation
+     * action
      * @since JavaFX 2.2
      */
     public final ObjectProperty<EventHandler<? super RotateEvent>>
@@ -7594,6 +7721,7 @@ public abstract class Node implements EventTarget, Styleable {
 
     /**
      * Defines a function to be called when a rotation gesture ends.
+     * @return the event handler that is called when a rotation gesture ends
      * @since JavaFX 2.2
      */
     public final ObjectProperty<EventHandler<? super RotateEvent>>
@@ -7613,6 +7741,8 @@ public abstract class Node implements EventTarget, Styleable {
 
     /**
      * Defines a function to be called when a zooming gesture is detected.
+     * @return the event handler that is called when a zooming gesture is
+     * detected
      * @since JavaFX 2.2
      */
     public final ObjectProperty<EventHandler<? super ZoomEvent>>
@@ -7632,6 +7762,8 @@ public abstract class Node implements EventTarget, Styleable {
 
     /**
      * Defines a function to be called when user performs a zooming action.
+     * @return the event handler that is called when user performs a zooming
+     * action
      * @since JavaFX 2.2
      */
     public final ObjectProperty<EventHandler<? super ZoomEvent>>
@@ -7651,6 +7783,7 @@ public abstract class Node implements EventTarget, Styleable {
 
     /**
      * Defines a function to be called when a zooming gesture ends.
+     * @return the event handler that is called when a zooming gesture ends
      * @since JavaFX 2.2
      */
     public final ObjectProperty<EventHandler<? super ZoomEvent>>
@@ -7671,6 +7804,8 @@ public abstract class Node implements EventTarget, Styleable {
     /**
      * Defines a function to be called when an upward swipe gesture
      * centered over this node happens.
+     * @return the event handler that is called when an upward swipe gesture
+     * centered over this node happens
      * @since JavaFX 2.2
      */
     public final ObjectProperty<EventHandler<? super SwipeEvent>>
@@ -7691,6 +7826,8 @@ public abstract class Node implements EventTarget, Styleable {
     /**
      * Defines a function to be called when a downward swipe gesture
      * centered over this node happens.
+     * @return the event handler that is called when a downward swipe gesture
+     * centered over this node happens
      * @since JavaFX 2.2
      */
     public final ObjectProperty<EventHandler<? super SwipeEvent>>
@@ -7711,6 +7848,8 @@ public abstract class Node implements EventTarget, Styleable {
     /**
      * Defines a function to be called when a leftward swipe gesture
      * centered over this node happens.
+     * @return the event handler that is called when a leftward swipe gesture
+     * centered over this node happens
      * @since JavaFX 2.2
      */
     public final ObjectProperty<EventHandler<? super SwipeEvent>>
@@ -7731,6 +7870,8 @@ public abstract class Node implements EventTarget, Styleable {
     /**
      * Defines a function to be called when an rightward swipe gesture
      * centered over this node happens.
+     * @return the event handler that is called when an rightward swipe gesture
+     * centered over this node happens
      * @since JavaFX 2.2
      */
     public final ObjectProperty<EventHandler<? super SwipeEvent>>
@@ -7757,6 +7898,7 @@ public abstract class Node implements EventTarget, Styleable {
 
     /**
      * Defines a function to be called when a new touch point is pressed.
+     * @return the event handler that is called when a new touch point is pressed
      * @since JavaFX 2.2
      */
     public final ObjectProperty<EventHandler<? super TouchEvent>>
@@ -7776,6 +7918,7 @@ public abstract class Node implements EventTarget, Styleable {
 
     /**
      * Defines a function to be called when a touch point is moved.
+     * @return the event handler that is called when a touch point is moved
      * @since JavaFX 2.2
      */
     public final ObjectProperty<EventHandler<? super TouchEvent>>
@@ -7795,6 +7938,7 @@ public abstract class Node implements EventTarget, Styleable {
 
     /**
      * Defines a function to be called when a touch point is released.
+     * @return the event handler that is called when a touch point is released
      * @since JavaFX 2.2
      */
     public final ObjectProperty<EventHandler<? super TouchEvent>>
@@ -7815,6 +7959,8 @@ public abstract class Node implements EventTarget, Styleable {
     /**
      * Defines a function to be called when a touch point stays pressed and
      * still.
+     * @return the event handler that is called when a touch point stays pressed
+     * and still
      * @since JavaFX 2.2
      */
     public final ObjectProperty<EventHandler<? super TouchEvent>>
@@ -7843,6 +7989,8 @@ public abstract class Node implements EventTarget, Styleable {
      * {@code Node} has input focus and a key has been pressed. The function
      * is called only if the event hasn't been already consumed during its
      * capturing or bubbling phase.
+     * @return the event handler that is called when this {@code Node} or its
+     * child {@code Node} has input focus and a key has been pressed
      */
     public final ObjectProperty<EventHandler<? super KeyEvent>>
             onKeyPressedProperty() {
@@ -7864,6 +8012,8 @@ public abstract class Node implements EventTarget, Styleable {
      * {@code Node} has input focus and a key has been released. The function
      * is called only if the event hasn't been already consumed during its
      * capturing or bubbling phase.
+     * @return the event handler that is called when this {@code Node} or its
+     * child {@code Node} has input focus and a key has been released
      */
     public final ObjectProperty<EventHandler<? super KeyEvent>>
             onKeyReleasedProperty() {
@@ -7885,6 +8035,8 @@ public abstract class Node implements EventTarget, Styleable {
      * {@code Node} has input focus and a key has been typed. The function
      * is called only if the event hasn't been already consumed during its
      * capturing or bubbling phase.
+     * @return the event handler that is called when this {@code Node} or its
+     * child {@code Node} has input focus and a key has been typed
      */
     public final ObjectProperty<EventHandler<? super KeyEvent>>
             onKeyTypedProperty() {
@@ -7914,9 +8066,12 @@ public abstract class Node implements EventTarget, Styleable {
      * function is not defined in this {@code Node}, then it
      * receives the result string of the input method composition as a
      * series of {@code onKeyTyped} function calls.
-     * </p>
+     * <p>
      * When the {@code Node} loses the input focus, the JavaFX runtime
      * automatically commits the existing composed text if any.
+     * </p>
+     * @return the event handler that is called when this {@code Node} has input
+     * focus and the input method text has changed
      */
     public final ObjectProperty<EventHandler<? super InputMethodEvent>>
             onInputMethodTextChangedProperty() {
@@ -8676,7 +8831,7 @@ public abstract class Node implements EventTarget, Styleable {
      * hierarchy from the stage to this node. Any event filter encountered will
      * be notified and can consume the event. If not consumed by the filters,
      * the event handlers on this node are notified. If these don't consume the
-     * event eighter, the event will travel back the same path it arrived to
+     * event either, the event will travel back the same path it arrived to
      * this node. All event handlers encountered are called and can consume the
      * event.
      * <p>
@@ -8756,6 +8911,7 @@ public abstract class Node implements EventTarget, Styleable {
      * initially be true (as the default implementation of this method is to return
      * false).
      *
+     * @return the initial focus traversable state for this {@code Node}.
      * @since 9
      */
     protected Boolean getInitialFocusTraversable() {
@@ -8769,6 +8925,7 @@ public abstract class Node implements EventTarget, Styleable {
      * initially be non-null (as the default implementation of this method is to return
      * null).
      *
+     * @return the initial cursor state for this {@code Node}.
      * @since 9
      */
     protected Cursor getInitialCursor() {
@@ -9149,7 +9306,7 @@ public abstract class Node implements EventTarget, Styleable {
      * pseudo-class is used in a CSS selector that matches this Node, CSS will
      * be reapplied. Typically, this method is called from the {@code invalidated}
      * method of a property that is used as a pseudo-class. For example:
-     * <code><pre>
+     * <pre><code>
      *
      *     private static final PseudoClass MY_PSEUDO_CLASS_STATE = PseudoClass.getPseudoClass("my-state");
      *
@@ -9167,7 +9324,7 @@ public abstract class Node implements EventTarget, Styleable {
      *               return "myPseudoClassState";
      *           }
      *       };
-     * </pre><code>
+     * </code></pre>
      * @param pseudoClass the pseudo-class that has changed state
      * @param active whether or not the state is active
      * @since JavaFX 8.0
@@ -9362,15 +9519,15 @@ public abstract class Node implements EventTarget, Styleable {
      * be invoked directly but may be used in conjunction with {@link Parent#layout()} to size a Node before the
      * next pulse, or if the {@link #getScene() Scene} is not in a {@link javafx.stage.Stage}.
      * <p>Provided that the Node&#39;s {@link #getScene() Scene} is not null, CSS is applied to this Node regardless
-     * of whether this Node&#39;s CSS state is clean. CSS styles are applied from the top&#8209;most parent
+     * of whether this Node&#39;s CSS state is clean. CSS styles are applied from the top-most parent
      * of this Node whose CSS state is other than clean, which may affect the styling of other nodes.
      * This method is a no-op if the Node is not in a Scene. The Scene does not have to be in a Stage.</p>
      * <p>This method does not invoke the {@link Parent#layout()} method. Typically, the caller will use the
      * following sequence of operations.</p>
-     * <pre><code>
+     * <pre>{@code
      *     parentNode.applyCss();
      *     parentNode.layout();
-     * </code></pre>
+     * }</pre>
      * <p>As a more complete example, the following code uses {@code applyCss()} and {@code layout()} to find
      * the width and height of the Button before the Stage has been shown. If either the call to {@code applyCss()}
      * or the call to {@code layout()} is commented out, the calls to {@code getWidth()} and {@code getHeight()}
@@ -9657,6 +9814,7 @@ public abstract class Node implements EventTarget, Styleable {
      * it is possible to set the role of a node to be a button, but
      * have the role description be arbitrary text.
      *
+     * @return the role description of this {@code Node}.
      * @defaultValue null
      *
      * @since JavaFX 8u40
@@ -9684,6 +9842,7 @@ public abstract class Node implements EventTarget, Styleable {
      * usually speaks using the text in the control but will
      * no longer do this when this value is set.
      *
+     * @return accessible text for this {@code Node}.
      * @defaultValue null
      *
      * @since JavaFX 8u40
@@ -9709,6 +9868,7 @@ public abstract class Node implements EventTarget, Styleable {
      * accessible text for a node.  By default, if the node has
      * a tool tip, this text is used.
      *
+     * @return the accessible help text for this {@code Node}.
      * @defaultValue null
      *
      * @since JavaFX 8u40
@@ -9826,7 +9986,7 @@ public abstract class Node implements EventTarget, Styleable {
      * This method is called by the application to notify the assistive
      * technology that the value for an attribute has changed.
      *
-     * @param notification the attribute whose value has changed
+     * @param attributes the attribute whose value has changed
      *
      * @see AccessibleAttribute
      *
