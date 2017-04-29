@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,18 +23,14 @@
  * questions.
  */
 
-package com.sun.javafx.webkit;
+package javafx.scene.shape;
 
-import javafx.scene.web.WebView;
+import com.sun.javafx.sg.prism.NGTriangleMesh;
 
-/**
- *  Allows to receive Webkit JS Web console messages.
- */
-public interface WebConsoleListener {
+public class TriangleMeshShim {
 
-    public static void setDefaultListener(WebConsoleListener l) {
-        WebPageClientImpl.setConsoleListener(l);
+    public static NGTriangleMesh getNGMesh(Mesh mesh) {
+        return (NGTriangleMesh) mesh.getPGMesh();
     }
 
-    void messageAdded(WebView webView, String message, int lineNumber, String sourceId);
 }

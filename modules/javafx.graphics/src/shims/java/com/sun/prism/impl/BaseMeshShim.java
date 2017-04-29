@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,18 +23,19 @@
  * questions.
  */
 
-package com.sun.javafx.webkit;
+package com.sun.prism.impl;
 
-import javafx.scene.web.WebView;
-
-/**
- *  Allows to receive Webkit JS Web console messages.
- */
-public interface WebConsoleListener {
-
-    public static void setDefaultListener(WebConsoleListener l) {
-        WebPageClientImpl.setConsoleListener(l);
+public class BaseMeshShim {
+    public static boolean test_isVertexBufferNull(BaseMesh mesh) {
+        return mesh.test_isVertexBufferNull();
     }
 
-    void messageAdded(WebView webView, String message, int lineNumber, String sourceId);
+    public static int test_getVertexBufferLength(BaseMesh mesh) {
+        return mesh.test_getVertexBufferLength();
+    }
+
+    public static int test_getNumberOfVertices(BaseMesh mesh) {
+        return mesh.test_getNumberOfVertices();
+    }
+
 }
